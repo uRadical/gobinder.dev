@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Performance — binder</title>
+<meta name="description" content="Measured cost of a binder call — nanoseconds and allocations per bind for each source — how the benchmarks were taken, and how to reproduce them.">
+<link rel="canonical" href="https://binder.dev/docs/performance.html">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#FBFBFD" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#080E2B" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="binder">
+<meta property="og:url" content="https://binder.dev/docs/performance.html">
+<meta property="og:title" content="Performance — binder">
+<meta property="og:description" content="Measured cost of a binder call — nanoseconds and allocations per bind for each source — how the benchmarks were taken, and how to reproduce them.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Performance — binder">
+<meta name="twitter:description" content="Measured cost of a binder call — nanoseconds and allocations per bind for each source — how the benchmarks were taken, and how to reproduce them.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sen:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/site.css">
+<link rel="stylesheet" href="/assets/css/docs.css">
+<script src="/assets/js/components.js" type="module"></script>
+<script>
+  // Applied before first paint so a stored theme choice never flashes.
+  try {
+    var t = localStorage.getItem('bd-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="wordmark" href="/">
+      <img class="mark" src="/assets/binder.svg" alt="" width="36" height="24" decoding="async">
+      <span>binder</span>
+    </a>
+    <nav aria-label="Primary">
+      <ul class="nav">
+        <li><a href="/#why">Why</a></li>
+        <li><a href="/#sources">Sources</a></li>
+        <li><a href="/docs/" aria-current="page">Docs</a></li>
+        <li><a href="/#install">Install</a></li>
+      </ul>
+    </nav>
+    <div class="header-actions">
+      <a class="icon-link" href="https://github.com/uRadical/binder" rel="noopener"
+         aria-label="binder on GitHub" title="GitHub"><svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+      <bd-theme-toggle></bd-theme-toggle>
+    </div>
+  </div>
+</header>
+
+<div class="wrap docs-layout">
+  <nav class="docs-nav" aria-label="Documentation">
+      <p class="docs-version">Documents <strong>v1.1.0</strong></p>
+      <p class="docs-nav-title">Getting started</p>
+      <ul>
+        <li><a href="/docs/">Overview</a></li>
+        <li><a href="/docs/install.html">Install &amp; quick start</a></li>
+        <li><a href="/docs/sources.html">Binding sources</a></li>
+      </ul>
+      <p class="docs-nav-title">Reference</p>
+      <ul>
+        <li><a href="/docs/types.html">Types &amp; conversion</a></li>
+        <li><a href="/docs/options.html">Options</a></li>
+        <li><a href="/docs/errors.html">Error handling</a></li>
+        <li><a href="/docs/validation.html">Validation</a></li>
+        <li><a href="/docs/api.html">API reference</a></li>
+      </ul>
+      <p class="docs-nav-title">Project</p>
+      <ul>
+        <li><a href="/docs/performance.html" class="on">Performance</a></li>
+        <li><a href="/docs/comparison.html">Comparison</a></li>
+        <li><a href="/docs/compatibility.html">Compatibility</a></li>
+      </ul>
+  </nav>
+
+  <main id="main" class="docs-main">
+    <p class="crumb"><a href="/">binder</a> / <a href="/docs/">Docs</a> / Performance</p>
+    <h1>Performance</h1>
+    <p class="docs-lede">
+      Binding from path, query, cookie or header costs a few hundred
+      nanoseconds and a handful of allocations. Binding a body costs more,
+      because the body has to be read and parsed before any field can be
+      converted.
+    </p>
+
+    <h2 id="method">How these were taken</h2>
+    <p>
+      Measured on an Apple M-series laptop with Go 1.27,
+      <code>-benchtime=200ms -count=10</code>, reporting the median of ten runs.
+      Each benchmark times binding alone: the request is built once and its body
+      re-armed between iterations, so <code>httptest.NewRequest</code> is not
+      folded into the figures — it costs more memory than the binding itself.
+    </p>
+
+    <bd-code><pre><code>make bench</code></pre></bd-code>
+
+    <h2 id="results">Results</h2>
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr><th>Benchmark</th><th class="num">ns/op</th><th class="num">B/op</th><th class="num">allocs/op</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>BindPathOnly</code></td><td class="num">105</td><td class="num">72</td><td class="num">3</td></tr>
+        <tr><td><code>BindCookieOnly</code></td><td class="num">184</td><td class="num">280</td><td class="num">5</td></tr>
+        <tr><td><code>BindNoQueryParams</code></td><td class="num">186</td><td class="num">280</td><td class="num">5</td></tr>
+        <tr><td><code>BindQueryOnly</code></td><td class="num">228</td><td class="num">496</td><td class="num">6</td></tr>
+        <tr><td><code>BindOmitEmpty</code></td><td class="num">250</td><td class="num">528</td><td class="num">6</td></tr>
+        <tr><td><code>BindBodyOnly/JSONBody</code></td><td class="num">886</td><td class="num">1,824</td><td class="num">31</td></tr>
+        <tr><td><code>BindParallel</code></td><td class="num">904</td><td class="num">2,600</td><td class="num">25</td></tr>
+        <tr><td><code>BindManyQueryParams</code></td><td class="num">918</td><td class="num">832</td><td class="num">20</td></tr>
+        <tr><td><code>BindBodyOnly/FormBody</code></td><td class="num">1,030</td><td class="num">2,600</td><td class="num">25</td></tr>
+        <tr><td><code>Bind</code></td><td class="num">1,254</td><td class="num">2,152</td><td class="num">29</td></tr>
+        <tr><td><code>BindMixed/WithJSON</code></td><td class="num">1,304</td><td class="num">2,544</td><td class="num">39</td></tr>
+        <tr><td><code>BindMixed/WithForm</code></td><td class="num">1,632</td><td class="num">3,712</td><td class="num">36</td></tr>
+        <tr><td><code>BindWithoutCache</code></td><td class="num">1,902</td><td class="num">3,464</td><td class="num">35</td></tr>
+        <tr><td><code>BindMultipart</code></td><td class="num">8,850</td><td class="num">38,069</td><td class="num">91</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h2 id="reading">Reading the numbers</h2>
+
+    <h3 id="cache">The tag cache</h3>
+    <p>
+      <code>Bind</code> against <code>BindWithoutCache</code> measures the
+      per-type tag cache: 1,254 ns and 29 allocations with it warm, against
+      1,902 ns and 35 allocations when it is cleared before every iteration.
+      Reflecting over a type's tags happens once per type, not once per request,
+      which is why the first request against a handler is the expensive one and
+      no other is.
+    </p>
+
+    <h3 id="query-parsing">The query string is parsed lazily</h3>
+    <p>
+      <code>BindManyQueryParams</code> binds eight query parameters and
+      <code>BindNoQueryParams</code> binds none. The gap shows that the query
+      string is parsed once per call and only when some field asks for it — a
+      struct with no <code>query</code> tag never pays for
+      <code>url.Values</code>.
+    </p>
+
+    <h3 id="bodies">Bodies cost more than the rest</h3>
+    <p>
+      A body has to be read before any field can be converted, which is why
+      every body benchmark starts higher than the ones that read a header or a
+      path value. A JSON body goes straight from the parser into your fields,
+      and a member no field binds is skipped without being decoded at all; a
+      form body still goes through a map, which is why it allocates more
+      despite being simpler to parse. A handler that reads only a path
+      parameter and a header touches none of it.
+    </p>
+
+    <h3 id="multipart-cost">Multipart is an order of magnitude dearer</h3>
+    <p>
+      <code>BindMultipart</code> carries two text fields and a 4&nbsp;KB file.
+      The gap is inherent to the encoding rather than to binding: the parser
+      copies each part, and the file is held in memory rather than spilled to
+      disk. It is the price of an upload, not of the tag lookup.
+    </p>
+
+    <h2 id="context">Context</h2>
+    <p>
+      Setting the upload aside, the slowest case here is under two
+      microseconds. On any endpoint that
+      touches a database, a cache or another service, binding is not the thing
+      to optimise — these numbers exist to show that it stays out of the way,
+      not to invite tuning.
+    </p>
+
+    <div class="docs-note">
+      Allocation counts are not part of the compatibility contract. A release
+      may bind in a different order or with a different number of allocations
+      without that being a breaking change. See
+      <a href="/docs/compatibility.html">Compatibility</a>.
+    </div>
+
+    <nav class="docs-pager" aria-label="Pagination">
+      <a class="prev" href="/docs/api.html">API reference</a>
+      <a class="next" href="/docs/comparison.html">Comparison</a>
+    </nav>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div>
+      <span class="footer-brand">
+        <img src="/assets/binder.svg" alt="" width="39" height="26" decoding="async">
+        <span class="footer-mark">binder</span>
+      </span>
+      <p class="footer-note">MIT licensed. Written in Go, with no dependencies.</p>
+      <a class="by-uradical" href="https://uradical.io" rel="noopener">
+        <span>An open-source library from</span>
+        <img src="/assets/uradical-logo.webp" alt="uRadical" width="132" height="26" decoding="async">
+      </a>
+    </div>
+    <nav aria-label="Footer">
+      <ul class="footer-links">
+        <li><a href="https://github.com/uRadical/binder" rel="noopener">GitHub</a></li>
+        <li><a href="https://pkg.go.dev/uradical.io/go/binder" rel="noopener">pkg.go.dev</a></li>
+        <li><a href="https://github.com/uRadical/binder/releases" rel="noopener">Releases</a></li>
+        <li><a href="https://github.com/uRadical/binder/issues" rel="noopener">Issues</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

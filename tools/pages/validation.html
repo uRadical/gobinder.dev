@@ -1,0 +1,119 @@
+title: Validation
+desc: binder's Validator interface — implement Validate() error on a request type and it runs as part of binding — and why the library has no validation tags of its own.
+---
+    <h1>Validation</h1>
+    <p class="docs-lede">
+      binder binds; it does not validate. What it offers is a single hook, so
+      that your own rules run as part of the same call and a handler has one
+      error path rather than two.
+    </p>
+
+    <h2 id="validator">The Validator interface</h2>
+
+    <bd-code data-lang="go"><pre><code>type Validator interface {
+	Validate() error
+}</code></pre></bd-code>
+
+    <p>
+      If the target implements it, <code>Bind</code> calls
+      <code>Validate</code> after every field is bound and returns whatever it
+      returns. Nothing to register, nothing to configure:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type CreateUser struct {
+	Name  string `body:"name"`
+	Email string `body:"email"`
+	Age   int    `body:"age"`
+}
+
+func (r CreateUser) Validate() error {
+	if r.Name == "" {
+		return errors.New("name is required")
+	}
+	if !strings.Contains(r.Email, "@") {
+		return errors.New("email must be an address")
+	}
+	if r.Age &lt; 18 {
+		return errors.New("user must be 18 or older")
+	}
+	return nil
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	var req CreateUser
+
+	// One step: bind, then validate.
+	if err := binder.Bind(r, &amp;req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// req is bound and valid.
+	json.NewEncoder(w).Encode(createUser(req))
+}</code></pre></bd-code>
+
+    <p>
+      A value receiver, as above, works on the pointer <code>Bind</code> is
+      given. A pointer receiver works too, and is what you want if
+      <code>Validate</code> normalises as well as checks — trimming whitespace,
+      lower-casing an address, filling a default.
+    </p>
+
+    <h2 id="errors">Reporting several problems</h2>
+    <p>
+      Binding stops at the first failure, but <code>Validate</code> is your
+      code and can collect as many as it likes. <code>errors.Join</code> is
+      usually enough:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>func (r CreateUser) Validate() error {
+	var problems []error
+	if r.Name == "" {
+		problems = append(problems, errors.New("name is required"))
+	}
+	if r.Age &lt; 18 {
+		problems = append(problems, errors.New("must be 18 or older"))
+	}
+	return errors.Join(problems...)
+}</code></pre></bd-code>
+
+    <p>
+      Returning your own error type works just as well, and
+      <code>errors.As</code> will find it through binder — so a handler can
+      render a field-by-field JSON response while still treating a bind failure
+      and a validation failure the same way.
+    </p>
+
+    <h2 id="why-not">Why there are no validation tags</h2>
+    <p>
+      A <code>min</code>, <code>max</code>, <code>email</code> tag vocabulary is
+      the obvious next feature and deliberately absent. Adding it would mean
+      inventing a rule language, an error format and a translation story, and
+      the result would be a worse version of what
+      <a href="https://github.com/go-playground/validator" rel="noopener">go-playground/validator</a>
+      already does well. binder stays small enough to read in one sitting, and
+      composes with whichever validator you prefer:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>var validate = validator.New()
+
+type CreateUser struct {
+	Email string `body:"email" validate:"required,email"`
+	Age   int    `body:"age"   validate:"gte=18"`
+}
+
+func (r CreateUser) Validate() error {
+	return validate.Struct(r)
+}</code></pre></bd-code>
+
+    <p>
+      The two tags coexist: binder reads <code>body</code>, the validator reads
+      <code>validate</code>, and neither knows about the other.
+    </p>
+
+    <div class="docs-note">
+      <code>required</code> in a binder tag is not validation — it asks whether
+      the request <em>supplied</em> the value, before any conversion. “Must be
+      present” is a binding question; “must be a valid email” is a validation
+      one. See <a href="/docs/options.html#required">Options</a>.
+    </div>

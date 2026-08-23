@@ -1,0 +1,101 @@
+title: Compatibility
+desc: What binder promises across a major version — the exported functions, types, sentinels and struct tags — what it explicitly does not promise, and the Go version support policy.
+---
+    <h1>Compatibility</h1>
+    <p class="docs-lede">
+      binder follows <a href="https://semver.org/" rel="noopener">Semantic
+      Versioning</a>. Within a major version the list below will not change
+      incompatibly, and the list after it may change in any release. Being
+      explicit about the second list is what makes the first one worth
+      anything.
+    </p>
+
+    <h2 id="stable">Stable within a major version</h2>
+    <ul>
+      <li>The exported functions <code>Bind</code>, <code>BindWithOptions</code> and <code>BindStruct</code>.</li>
+      <li>The exported types <code>BindOptions</code>, <code>BindError</code> and <code>Validator</code>, and the meaning of their fields.</li>
+      <li>The sentinel errors <code>ErrMalformedBody</code>, <code>ErrBodyTooLarge</code>, <code>ErrInvalidTarget</code>, <code>ErrMissingRequired</code> and <code>ErrUnknownField</code>. Match on these with <code>errors.Is</code> rather than on message text.</li>
+      <li>The struct tags <code>path</code>, <code>query</code>, <code>body</code>, <code>json</code>, <code>cookie</code> and <code>header</code>, the order in which they take precedence, and the <code>omitempty</code> and <code>required</code> options.</li>
+    </ul>
+
+    <h2 id="unstable">Not part of the contract</h2>
+    <ul>
+      <li><strong>The text of error messages.</strong> Only the sentinels and <code>BindError</code>'s fields are stable; parsing a message is not supported.</li>
+      <li><strong>The default value of <code>MaxBodySize</code>.</strong> Set it explicitly if your service depends on a particular limit.</li>
+      <li><strong>The order in which fields are bound</strong>, and how many allocations binding takes.</li>
+    </ul>
+
+    <h2 id="go">Go version support</h2>
+    <p>
+      binder requires the two most recent major Go releases. It currently
+      requires <strong>Go 1.27</strong>, for the standard library
+      <code>uuid</code> package and native path values. Raising that minimum is
+      a minor version bump, not a major one, in line with the wider Go
+      ecosystem.
+    </p>
+
+    <div class="docs-note docs-warn">
+      Built with Go 1.27, <code>encoding/json</code> is implemented on json/v2
+      and returns different error types, so
+      <code>errors.As(err, &amp;*json.SyntaxError{})</code> no longer matches a
+      malformed body. Test for <code>ErrMalformedBody</code> instead.
+    </div>
+
+    <h2 id="upgrading">Upgrading from 1.0 to 1.1</h2>
+    <p>
+      1.1.0 is the first release intended for general use; 1.0 ran only on our
+      own client projects. If you are arriving at binder fresh, none of this
+      applies to you — it is written for those two codebases.
+    </p>
+    <p>
+      No exported function changed shape, so 1.1.0 is source compatible. It does
+      change behaviour in cases that previously failed quietly, which is the
+      point of most of it:
+    </p>
+
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead><tr><th>Change</th><th>What to expect</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Request bodies are capped at 10 MB</td>
+          <td>Anything larger is <code>ErrBodyTooLarge</code> instead of being read into memory. The change most likely to be noticed — set <code>binder.MaxBodySize</code> at startup to raise, lower or remove it.</td>
+        </tr>
+        <tr>
+          <td>A body that cannot be parsed is an error</td>
+          <td>Malformed JSON previously bound nothing and reported success. Expect new 400s where there were quiet successes with empty fields.</td>
+        </tr>
+        <tr>
+          <td>Tag options now bind</td>
+          <td><code>body:"email,omitempty"</code> searched for a key literally named <code>email,omitempty</code> and never bound. Such fields will start receiving values, which may surface data a handler never saw.</td>
+        </tr>
+        <tr>
+          <td>Chunked request bodies are read</td>
+          <td>They were skipped entirely, because the body was gated on a positive <code>Content-Length</code> and a chunked request declares none.</td>
+        </tr>
+        <tr>
+          <td>Repeated values fill slices</td>
+          <td>A query parameter, header or form field given more than once now binds every value to a slice field rather than the first. Non-slice fields are unaffected.</td>
+        </tr>
+        <tr>
+          <td>Go 1.27 is required</td>
+          <td>The previous release declared <code>go 1.25.1</code>; the documentation's claim of 1.22+ was never accurate.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>
+      The full list is in the
+      <a href="https://github.com/uRadical/binder/blob/main/CHANGELOG.md" rel="noopener">changelog</a>.
+    </p>
+
+    <h2 id="security">Security</h2>
+    <p>
+      binder parses untrusted input by design, so the body limit, the refusal to
+      truncate and the absence of panics are treated as security properties
+      rather than niceties. Report anything that looks like a vulnerability
+      through the process in
+      <a href="https://github.com/uRadical/binder/blob/main/SECURITY.md" rel="noopener">SECURITY.md</a>
+      rather than a public issue.
+    </p>

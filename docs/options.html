@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Options — binder</title>
+<meta name="description" content="binder's tag options — required and omitempty — and per-call configuration through BindOptions, including MaxBodySize and DisallowUnknownFields.">
+<link rel="canonical" href="https://binder.dev/docs/options.html">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#FBFBFD" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#080E2B" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="binder">
+<meta property="og:url" content="https://binder.dev/docs/options.html">
+<meta property="og:title" content="Options — binder">
+<meta property="og:description" content="binder's tag options — required and omitempty — and per-call configuration through BindOptions, including MaxBodySize and DisallowUnknownFields.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Options — binder">
+<meta name="twitter:description" content="binder's tag options — required and omitempty — and per-call configuration through BindOptions, including MaxBodySize and DisallowUnknownFields.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sen:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/site.css">
+<link rel="stylesheet" href="/assets/css/docs.css">
+<script src="/assets/js/components.js" type="module"></script>
+<script>
+  // Applied before first paint so a stored theme choice never flashes.
+  try {
+    var t = localStorage.getItem('bd-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="wordmark" href="/">
+      <img class="mark" src="/assets/binder.svg" alt="" width="36" height="24" decoding="async">
+      <span>binder</span>
+    </a>
+    <nav aria-label="Primary">
+      <ul class="nav">
+        <li><a href="/#why">Why</a></li>
+        <li><a href="/#sources">Sources</a></li>
+        <li><a href="/docs/" aria-current="page">Docs</a></li>
+        <li><a href="/#install">Install</a></li>
+      </ul>
+    </nav>
+    <div class="header-actions">
+      <a class="icon-link" href="https://github.com/uRadical/binder" rel="noopener"
+         aria-label="binder on GitHub" title="GitHub"><svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+      <bd-theme-toggle></bd-theme-toggle>
+    </div>
+  </div>
+</header>
+
+<div class="wrap docs-layout">
+  <nav class="docs-nav" aria-label="Documentation">
+      <p class="docs-version">Documents <strong>v1.1.0</strong></p>
+      <p class="docs-nav-title">Getting started</p>
+      <ul>
+        <li><a href="/docs/">Overview</a></li>
+        <li><a href="/docs/install.html">Install &amp; quick start</a></li>
+        <li><a href="/docs/sources.html">Binding sources</a></li>
+      </ul>
+      <p class="docs-nav-title">Reference</p>
+      <ul>
+        <li><a href="/docs/types.html">Types &amp; conversion</a></li>
+        <li><a href="/docs/options.html" class="on">Options</a></li>
+        <li><a href="/docs/errors.html">Error handling</a></li>
+        <li><a href="/docs/validation.html">Validation</a></li>
+        <li><a href="/docs/api.html">API reference</a></li>
+      </ul>
+      <p class="docs-nav-title">Project</p>
+      <ul>
+        <li><a href="/docs/performance.html">Performance</a></li>
+        <li><a href="/docs/comparison.html">Comparison</a></li>
+        <li><a href="/docs/compatibility.html">Compatibility</a></li>
+      </ul>
+  </nav>
+
+  <main id="main" class="docs-main">
+    <p class="crumb"><a href="/">binder</a> / <a href="/docs/">Docs</a> / Options</p>
+    <h1>Options</h1>
+    <p class="docs-lede">
+      Two options ride on the tag, and two more are passed per call. Between
+      them they cover the questions binding has to answer: what happens when a
+      value is missing, when it is empty, when the body is enormous, and when
+      the body carries keys the struct never asked for.
+    </p>
+
+    <h2 id="tag-options">Tag options</h2>
+    <p>
+      An option follows the key, comma-separated, in whichever tag binder reads
+      for that field:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type Request struct {
+	Email string `body:"email,required"`
+	Nick  string `body:"nick,omitempty"`
+}</code></pre></bd-code>
+
+    <h3 id="required"><code>required</code></h3>
+    <p>
+      Binding fails if the value is missing from its source. The error is a
+      <code>*BindError</code> naming the field, wrapping
+      <code>ErrMissingRequired</code>:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>if errors.Is(err, binder.ErrMissingRequired) {
+	http.Error(w, err.Error(), http.StatusBadRequest)
+	return
+}</code></pre></bd-code>
+
+    <p>What counts as missing depends on the source, because the sources differ:</p>
+
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead><tr><th>Source</th><th>Missing when</th></tr></thead>
+      <tbody>
+        <tr><td><code>path</code>, <code>query</code>, <code>header</code></td><td>Absent <em>or</em> empty — neither source distinguishes the two, so <code>?q=</code> is treated as no <code>q</code>.</td></tr>
+        <tr><td><code>body</code>, <code>json</code></td><td>The key is absent. A key present with an empty value satisfies <code>required</code>.</td></tr>
+        <tr><td><code>cookie</code></td><td>No cookie of that name was sent. A cookie with an empty value satisfies <code>required</code>.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>
+      Binding stops at the first missing required field. If you need every
+      problem in one response rather than the first, collect them in a
+      <a href="/docs/validation.html"><code>Validate</code> method</a> instead —
+      binder deliberately does not accumulate.
+    </p>
+
+    <h3 id="omitempty"><code>omitempty</code></h3>
+    <p>
+      Skip binding when the value is present but empty, leaving the field at
+      whatever it already held. That is what makes defaults work: set the field
+      before binding, and an empty input will not overwrite it.
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type ListOptions struct {
+	PerPage int    `query:"per_page,omitempty"`
+	Sort    string `query:"sort,omitempty"`
+}
+
+opts := ListOptions{PerPage: 25, Sort: "created"}
+if err := binder.Bind(r, &amp;opts); err != nil {
+	// ...
+}
+// ?per_page= leaves PerPage at 25 rather than zeroing it.</code></pre></bd-code>
+
+    <p>
+      Empty means the empty string, a zero number, false, or an empty slice or
+      map. <code>required</code> and <code>omitempty</code> on the same field
+      are not contradictory: the value must be present, and if it is present but
+      empty the field is left alone.
+    </p>
+
+    <div class="docs-note">
+      Tag options binding at all is new in 1.1.0. Before that,
+      <code>body:"email,omitempty"</code> looked for a key literally named
+      <code>email,omitempty</code> and so never bound anything. Fields written
+      that way will start receiving values on upgrade.
+    </div>
+
+    <h2 id="bindoptions">Per-call options</h2>
+    <p>
+      <code>BindWithOptions</code> is <code>Bind</code> with configuration. The
+      zero <code>BindOptions</code> behaves exactly as <code>Bind</code> does,
+      so only the fields you care about need setting:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>opts := binder.BindOptions{
+	MaxBodySize:           1 &lt;&lt; 20, // 1 MB for this call only
+	DisallowUnknownFields: true,    // reject body keys nothing binds
+}
+
+if err := binder.BindWithOptions(r, &amp;req, opts); err != nil {
+	// ...
+}</code></pre></bd-code>
+
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead><tr><th>Field</th><th>Default</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>MaxBodySize</code></td><td><code>0</code></td>
+          <td>Overrides the package-level <code>binder.MaxBodySize</code> for this call. Zero leaves the package setting in force; a negative value removes the limit for this call alone.</td>
+        </tr>
+        <tr>
+          <td><code>DisallowUnknownFields</code></td><td><code>false</code></td>
+          <td>Fails with <code>ErrUnknownField</code> when the body carries a top-level key that no field of the target binds. Keys nested inside objects are not inspected.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3 id="unknown">Rejecting unknown fields</h3>
+    <p>
+      Useful on write endpoints, where a client sending <code>emial</code>
+      would otherwise get a cheerful 200 and no email change. It is a per-call
+      option rather than the default because a rejected typo is the right
+      answer for an internal API and the wrong one for a public endpoint that
+      has to tolerate clients sending more than it reads.
+    </p>
+
+    <bd-code data-lang="go"><pre><code>if errors.Is(err, binder.ErrUnknownField) {
+	http.Error(w, err.Error(), http.StatusBadRequest)
+	return
+}</code></pre></bd-code>
+
+    <h2 id="maxbodysize">Body size limits</h2>
+    <p>
+      Bodies are capped at <code>binder.MaxBodySize</code>, which defaults to
+      <code>DefaultMaxBodySize</code> — 10 MB. An oversized body is rejected
+      with <code>ErrBodyTooLarge</code> rather than truncated, so a request is
+      never bound from half a body. The limit is enforced while reading rather
+      than trusted from <code>Content-Length</code>, which the client controls
+      and may understate.
+    </p>
+
+    <p>Set it once during initialisation to change the default everywhere:</p>
+
+    <bd-code data-lang="go"><pre><code>func init() {
+	binder.MaxBodySize = 2 &lt;&lt; 20 // 2 MB
+}</code></pre></bd-code>
+
+    <p>
+      Zero or less removes the limit entirely and restores the unbounded
+      behaviour of 1.0. The variable is read on every call, so set it at startup
+      rather than while requests are in flight.
+    </p>
+
+    <div class="docs-note docs-warn">
+      The default value is not part of the compatibility contract — set it
+      explicitly if your service depends on a particular limit. See
+      <a href="/docs/compatibility.html">Compatibility</a>.
+    </div>
+
+    <nav class="docs-pager" aria-label="Pagination">
+      <a class="prev" href="/docs/types.html">Types &amp; conversion</a>
+      <a class="next" href="/docs/errors.html">Error handling</a>
+    </nav>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div>
+      <span class="footer-brand">
+        <img src="/assets/binder.svg" alt="" width="39" height="26" decoding="async">
+        <span class="footer-mark">binder</span>
+      </span>
+      <p class="footer-note">MIT licensed. Written in Go, with no dependencies.</p>
+      <a class="by-uradical" href="https://uradical.io" rel="noopener">
+        <span>An open-source library from</span>
+        <img src="/assets/uradical-logo.webp" alt="uRadical" width="132" height="26" decoding="async">
+      </a>
+    </div>
+    <nav aria-label="Footer">
+      <ul class="footer-links">
+        <li><a href="https://github.com/uRadical/binder" rel="noopener">GitHub</a></li>
+        <li><a href="https://pkg.go.dev/uradical.io/go/binder" rel="noopener">pkg.go.dev</a></li>
+        <li><a href="https://github.com/uRadical/binder/releases" rel="noopener">Releases</a></li>
+        <li><a href="https://github.com/uRadical/binder/issues" rel="noopener">Issues</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

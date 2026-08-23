@@ -1,0 +1,263 @@
+/* ==========================================================================
+   /docs — reference and guides. Layered on site.css, reusing its tokens.
+   ========================================================================== */
+
+.docs-layout {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  align-items: start;
+  padding-block: 2.5rem 4rem;
+}
+
+@media (max-width: 900px) {
+  .docs-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ------------------------------------------------------------- sidebar --- */
+
+.docs-nav {
+  position: sticky;
+  top: 76px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  padding-right: .5rem;
+  font-size: .9rem;
+}
+
+@media (max-width: 900px) {
+  .docs-nav {
+    position: static;
+    max-height: none;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+.docs-nav-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 1.5rem 0 .5rem;
+}
+.docs-nav-title:first-child { margin-top: 0; }
+
+.docs-nav ul { list-style: none; margin: 0; padding: 0; }
+.docs-nav li { margin-bottom: .1rem; }
+
+.docs-nav a {
+  display: block;
+  padding: .28rem .6rem;
+  border-radius: var(--radius-xs);
+  color: var(--ink-soft);
+  border-left: 2px solid transparent;
+}
+.docs-nav a:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+  opacity: 1;
+}
+.docs-nav a.on {
+  color: var(--ink);
+  font-weight: 700;
+  border-left-color: var(--purple);
+  background: var(--accent-soft);
+}
+.docs-nav code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: .95em;
+  color: inherit;
+}
+
+/* Which release the reference describes — a reference silently describing a
+   different version than the reader imported is worse than no reference. */
+.docs-version {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 1.25rem;
+  padding: .4rem .75rem;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--sky);
+}
+.docs-version strong { color: var(--ink); font-weight: 700; }
+
+/* ---------------------------------------------------------------- main --- */
+
+.docs-main { min-width: 0; }
+
+.docs-main h1 {
+  font-size: clamp(1.9rem, 1.4rem + 1.6vw, 2.5rem);
+  margin-bottom: .5rem;
+}
+.docs-main h1 code { background: none; border: 0; padding: 0; font-size: .92em; }
+
+.docs-main h2 {
+  font-size: 1.5rem;
+  margin-top: 2.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  scroll-margin-top: 84px;
+}
+.docs-main h2:first-of-type { border-top: 0; padding-top: 0; }
+
+.docs-main h3 { font-size: 1.12rem; margin-top: 1.75rem; scroll-margin-top: 84px; }
+
+.docs-main p  { color: var(--ink-soft); }
+.docs-main li { color: var(--ink-soft); margin-bottom: .3rem; }
+.docs-main ul, .docs-main ol { padding-left: 1.25rem; }
+
+.crumb { font-size: 13px; color: var(--muted); margin-bottom: .75rem; }
+.crumb a { color: var(--muted); text-decoration: none; }
+.crumb a:hover { color: var(--accent); text-decoration: underline; }
+
+.docs-lede {
+  font-size: 1.06rem;
+  color: var(--ink-soft);
+  max-width: 68ch;
+  margin-bottom: 1.5rem;
+}
+
+.docs-note {
+  font-size: .9rem !important;
+  color: var(--muted) !important;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--purple);
+  border-radius: var(--radius-xs);
+  padding: .9rem 1.15rem;
+  margin: 1.25rem 0;
+}
+.docs-note code { background: var(--surface); }
+
+/* A warning carries the pink stop of the gradient rather than the purple. */
+.docs-warn { border-left-color: var(--pink); }
+
+.docs-main bd-code,
+.docs-main .slab { margin: 1.1rem 0; }
+.docs-main .data-table { margin: 1.1rem 0; }
+
+/* -------------------------------------------------------- symbol blocks --- */
+/* One exported identifier: signature, then prose. */
+
+.sym {
+  scroll-margin-top: 84px;
+  padding: 1.4rem 0 .4rem;
+  border-top: 1px solid var(--border);
+}
+.sym:first-of-type { border-top: 0; }
+
+.sym h3 {
+  margin: 0 0 .5rem;
+  padding-top: 0;
+  border-top: 0;
+  font-size: 1.18rem;
+}
+.sym h3 code {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--ink);
+  font-size: 1em;
+}
+
+.kind {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 100px;
+  padding: .1rem .5rem;
+  vertical-align: middle;
+  margin-left: .5rem;
+}
+
+.sig {
+  margin: 0 0 1rem;
+  background: var(--code-bg);
+  color: var(--code-typ);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  padding: .8rem 1.1rem;
+  overflow-x: auto;
+  font-size: 13px;
+}
+.sig code { background: none; border: 0; padding: 0; color: inherit; }
+
+.doc-subhead {
+  font-family: var(--mono);
+  font-size: 11px !important;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: .16em;
+  color: var(--muted);
+  margin: 1rem 0 .4rem !important;
+}
+
+/* --------------------------------------------------------------- index --- */
+
+.doc-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: .8rem;
+  margin: 1.25rem 0 0;
+}
+
+.doc-card {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  transition: transform .15s, box-shadow .15s, border-color .15s;
+}
+.doc-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow);
+  opacity: 1;
+}
+.doc-card strong {
+  font-size: .95rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.doc-card span {
+  font-size: .86rem;
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+.doc-card em {
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: .1em;
+  color: var(--muted);
+}
+
+/* --------------------------------------------------------- page footer --- */
+
+.docs-pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  font-size: .92rem;
+}
+.docs-pager a { display: inline-flex; gap: .4rem; }
+.docs-pager .prev::before { content: "\2190"; color: var(--muted); }
+.docs-pager .next::after  { content: "\2192"; color: var(--muted); }

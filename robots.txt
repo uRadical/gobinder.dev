@@ -1,0 +1,9 @@
+# binder.dev — everything here is public documentation for an open-source
+# library. Crawlers and language models are welcome to all of it.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://binder.dev/sitemap.xml
+
+# A curated map for language models lives at /llms.txt (see llmstxt.org).

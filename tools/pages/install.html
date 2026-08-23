@@ -1,0 +1,127 @@
+title: Install &amp; quick start
+desc: Add uradical.io/go/binder to a Go 1.27 module and bind your first handler — path parameter, query string and JSON body in one call.
+---
+    <h1>Install &amp; quick start</h1>
+    <p class="docs-lede">
+      binder has no dependencies and no build step of its own. Adding it is one
+      <code>go get</code>; using it is one function.
+    </p>
+
+    <h2 id="requirements">Requirements</h2>
+    <p>
+      <strong>Go 1.27 or newer.</strong> binder reads path parameters through
+      <code>Request.PathValue</code> and uses the standard library's
+      <code>uuid</code> package, so earlier toolchains will not build it. See
+      <a href="/docs/compatibility.html#go">the Go version policy</a> for how
+      that minimum moves.
+    </p>
+
+    <h2 id="install">Install</h2>
+
+    <bd-tabs>
+      <section data-label="go get">
+        <p>Fetches the latest release and records it in <code>go.mod</code>.</p>
+        <bd-code><pre><code>go get uradical.io/go/binder</code></pre></bd-code>
+      </section>
+      <section data-label="Pin a version">
+        <p>Ask for a particular release rather than whatever is newest.</p>
+        <bd-code><pre><code>go get uradical.io/go/binder@v1.1.0</code></pre></bd-code>
+      </section>
+      <section data-label="go mod tidy">
+        <p>Write the import first and let the toolchain work out the rest.</p>
+        <bd-code><pre><code>go mod tidy</code></pre></bd-code>
+      </section>
+    </bd-tabs>
+
+    <p>Either way, import it as <code>binder</code>:</p>
+
+    <bd-code data-lang="go"><pre><code>import "uradical.io/go/binder"</code></pre></bd-code>
+
+    <h2 id="first">Your first handler</h2>
+    <p>
+      A route with a path parameter, an optional query flag and a JSON body —
+      three sources, one struct, one call.
+    </p>
+
+    <bd-code data-lang="go"><pre><code>package main
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+
+	"uradical.io/go/binder"
+)
+
+type CreateComment struct {
+	PostID  int      `path:"id"`
+	Notify  bool     `query:"notify"`
+	Author  string   `body:"author,required"`
+	Text    string   `body:"text,required"`
+	Tags    []string `body:"tags,omitempty"`
+}
+
+func createComment(w http.ResponseWriter, r *http.Request) {
+	var req CreateComment
+	if err := binder.Bind(r, &amp;req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	json.NewEncoder(w).Encode(req)
+}
+
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /posts/{id}/comments", createComment)
+	log.Fatal(http.ListenAndServe(":8080", mux))
+}</code></pre></bd-code>
+
+    <p>Run it, then send a request that exercises all three sources:</p>
+
+    <bd-code><pre><code>curl -X POST 'http://localhost:8080/posts/42/comments?notify=true' \
+  -H 'Content-Type: application/json' \
+  -d '{"author":"ada","text":"first","tags":["intro","meta"]}'</code></pre></bd-code>
+
+    <div class="slab">
+      <div class="slab-bar"><span></span><span></span><span></span><b>response</b></div>
+<pre class="slab-body"><code>{"PostID":42,"Notify":true,"Author":"ada","Text":"first","Tags":["intro","meta"]}</code></pre>
+    </div>
+
+    <p>
+      Now drop the <code>author</code> key and send it again. Because that field
+      is tagged <code>required</code>, nothing is bound and the handler answers
+      400 with a message naming the field and the source it should have come
+      from:
+    </p>
+
+    <div class="slab">
+      <div class="slab-bar"><span></span><span></span><span></span><b>response</b></div>
+<pre class="slab-body"><code><span class="bad">missing required field Author: no body value named "author"</span></code></pre>
+    </div>
+
+    <div class="docs-note">
+      The error text is deliberately not part of the API — match on
+      <code>ErrMissingRequired</code> rather than on the string. See
+      <a href="/docs/errors.html">Error handling</a>.
+    </div>
+
+    <h2 id="content-types">What the body needs to say</h2>
+    <p>
+      Body binding follows the request's <code>Content-Type</code>. Send
+      <code>application/json</code> for JSON or
+      <code>application/x-www-form-urlencoded</code> for a form; anything else
+      leaves the body unparsed and the request binds from its path, query,
+      cookie and header values alone. The same struct handles both, so an HTML
+      form post and an API call can share a handler:
+    </p>
+
+    <bd-code><pre><code>curl -X POST 'http://localhost:8080/posts/42/comments' \
+  -d 'author=ada&amp;text=first&amp;tags=intro&amp;tags=meta'</code></pre></bd-code>
+
+    <h2 id="next">Where to go next</h2>
+    <ul>
+      <li><a href="/docs/sources.html">Binding sources</a> — the six tags and their precedence.</li>
+      <li><a href="/docs/options.html">Options</a> — <code>required</code>, <code>omitempty</code> and per-call configuration.</li>
+      <li><a href="/docs/errors.html">Error handling</a> — turning a bind failure into the right status code.</li>
+    </ul>

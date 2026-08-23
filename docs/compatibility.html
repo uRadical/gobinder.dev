@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compatibility — binder</title>
+<meta name="description" content="What binder promises across a major version — the exported functions, types, sentinels and struct tags — what it explicitly does not promise, and the Go version support policy.">
+<link rel="canonical" href="https://binder.dev/docs/compatibility.html">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#FBFBFD" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#080E2B" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="binder">
+<meta property="og:url" content="https://binder.dev/docs/compatibility.html">
+<meta property="og:title" content="Compatibility — binder">
+<meta property="og:description" content="What binder promises across a major version — the exported functions, types, sentinels and struct tags — what it explicitly does not promise, and the Go version support policy.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Compatibility — binder">
+<meta name="twitter:description" content="What binder promises across a major version — the exported functions, types, sentinels and struct tags — what it explicitly does not promise, and the Go version support policy.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sen:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/site.css">
+<link rel="stylesheet" href="/assets/css/docs.css">
+<script src="/assets/js/components.js" type="module"></script>
+<script>
+  // Applied before first paint so a stored theme choice never flashes.
+  try {
+    var t = localStorage.getItem('bd-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="wordmark" href="/">
+      <img class="mark" src="/assets/binder.svg" alt="" width="36" height="24" decoding="async">
+      <span>binder</span>
+    </a>
+    <nav aria-label="Primary">
+      <ul class="nav">
+        <li><a href="/#why">Why</a></li>
+        <li><a href="/#sources">Sources</a></li>
+        <li><a href="/docs/" aria-current="page">Docs</a></li>
+        <li><a href="/#install">Install</a></li>
+      </ul>
+    </nav>
+    <div class="header-actions">
+      <a class="icon-link" href="https://github.com/uRadical/binder" rel="noopener"
+         aria-label="binder on GitHub" title="GitHub"><svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+      <bd-theme-toggle></bd-theme-toggle>
+    </div>
+  </div>
+</header>
+
+<div class="wrap docs-layout">
+  <nav class="docs-nav" aria-label="Documentation">
+      <p class="docs-version">Documents <strong>v1.1.0</strong></p>
+      <p class="docs-nav-title">Getting started</p>
+      <ul>
+        <li><a href="/docs/">Overview</a></li>
+        <li><a href="/docs/install.html">Install &amp; quick start</a></li>
+        <li><a href="/docs/sources.html">Binding sources</a></li>
+      </ul>
+      <p class="docs-nav-title">Reference</p>
+      <ul>
+        <li><a href="/docs/types.html">Types &amp; conversion</a></li>
+        <li><a href="/docs/options.html">Options</a></li>
+        <li><a href="/docs/errors.html">Error handling</a></li>
+        <li><a href="/docs/validation.html">Validation</a></li>
+        <li><a href="/docs/api.html">API reference</a></li>
+      </ul>
+      <p class="docs-nav-title">Project</p>
+      <ul>
+        <li><a href="/docs/performance.html">Performance</a></li>
+        <li><a href="/docs/comparison.html">Comparison</a></li>
+        <li><a href="/docs/compatibility.html" class="on">Compatibility</a></li>
+      </ul>
+  </nav>
+
+  <main id="main" class="docs-main">
+    <p class="crumb"><a href="/">binder</a> / <a href="/docs/">Docs</a> / Compatibility</p>
+    <h1>Compatibility</h1>
+    <p class="docs-lede">
+      binder follows <a href="https://semver.org/" rel="noopener">Semantic
+      Versioning</a>. Within a major version the list below will not change
+      incompatibly, and the list after it may change in any release. Being
+      explicit about the second list is what makes the first one worth
+      anything.
+    </p>
+
+    <h2 id="stable">Stable within a major version</h2>
+    <ul>
+      <li>The exported functions <code>Bind</code>, <code>BindWithOptions</code> and <code>BindStruct</code>.</li>
+      <li>The exported types <code>BindOptions</code>, <code>BindError</code> and <code>Validator</code>, and the meaning of their fields.</li>
+      <li>The sentinel errors <code>ErrMalformedBody</code>, <code>ErrBodyTooLarge</code>, <code>ErrInvalidTarget</code>, <code>ErrMissingRequired</code> and <code>ErrUnknownField</code>. Match on these with <code>errors.Is</code> rather than on message text.</li>
+      <li>The struct tags <code>path</code>, <code>query</code>, <code>body</code>, <code>json</code>, <code>cookie</code> and <code>header</code>, the order in which they take precedence, and the <code>omitempty</code> and <code>required</code> options.</li>
+    </ul>
+
+    <h2 id="unstable">Not part of the contract</h2>
+    <ul>
+      <li><strong>The text of error messages.</strong> Only the sentinels and <code>BindError</code>'s fields are stable; parsing a message is not supported.</li>
+      <li><strong>The default value of <code>MaxBodySize</code>.</strong> Set it explicitly if your service depends on a particular limit.</li>
+      <li><strong>The order in which fields are bound</strong>, and how many allocations binding takes.</li>
+    </ul>
+
+    <h2 id="go">Go version support</h2>
+    <p>
+      binder requires the two most recent major Go releases. It currently
+      requires <strong>Go 1.27</strong>, for the standard library
+      <code>uuid</code> package and native path values. Raising that minimum is
+      a minor version bump, not a major one, in line with the wider Go
+      ecosystem.
+    </p>
+
+    <div class="docs-note docs-warn">
+      Built with Go 1.27, <code>encoding/json</code> is implemented on json/v2
+      and returns different error types, so
+      <code>errors.As(err, &amp;*json.SyntaxError{})</code> no longer matches a
+      malformed body. Test for <code>ErrMalformedBody</code> instead.
+    </div>
+
+    <h2 id="upgrading">Upgrading from 1.0 to 1.1</h2>
+    <p>
+      1.1.0 is the first release intended for general use; 1.0 ran only on our
+      own client projects. If you are arriving at binder fresh, none of this
+      applies to you — it is written for those two codebases.
+    </p>
+    <p>
+      No exported function changed shape, so 1.1.0 is source compatible. It does
+      change behaviour in cases that previously failed quietly, which is the
+      point of most of it:
+    </p>
+
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead><tr><th>Change</th><th>What to expect</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Request bodies are capped at 10 MB</td>
+          <td>Anything larger is <code>ErrBodyTooLarge</code> instead of being read into memory. The change most likely to be noticed — set <code>binder.MaxBodySize</code> at startup to raise, lower or remove it.</td>
+        </tr>
+        <tr>
+          <td>A body that cannot be parsed is an error</td>
+          <td>Malformed JSON previously bound nothing and reported success. Expect new 400s where there were quiet successes with empty fields.</td>
+        </tr>
+        <tr>
+          <td>Tag options now bind</td>
+          <td><code>body:"email,omitempty"</code> searched for a key literally named <code>email,omitempty</code> and never bound. Such fields will start receiving values, which may surface data a handler never saw.</td>
+        </tr>
+        <tr>
+          <td>Chunked request bodies are read</td>
+          <td>They were skipped entirely, because the body was gated on a positive <code>Content-Length</code> and a chunked request declares none.</td>
+        </tr>
+        <tr>
+          <td>Repeated values fill slices</td>
+          <td>A query parameter, header or form field given more than once now binds every value to a slice field rather than the first. Non-slice fields are unaffected.</td>
+        </tr>
+        <tr>
+          <td>Go 1.27 is required</td>
+          <td>The previous release declared <code>go 1.25.1</code>; the documentation's claim of 1.22+ was never accurate.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>
+      The full list is in the
+      <a href="https://github.com/uRadical/binder/blob/main/CHANGELOG.md" rel="noopener">changelog</a>.
+    </p>
+
+    <h2 id="security">Security</h2>
+    <p>
+      binder parses untrusted input by design, so the body limit, the refusal to
+      truncate and the absence of panics are treated as security properties
+      rather than niceties. Report anything that looks like a vulnerability
+      through the process in
+      <a href="https://github.com/uRadical/binder/blob/main/SECURITY.md" rel="noopener">SECURITY.md</a>
+      rather than a public issue.
+    </p>
+
+    <nav class="docs-pager" aria-label="Pagination">
+      <a class="prev" href="/docs/comparison.html">Comparison</a>
+    </nav>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div>
+      <span class="footer-brand">
+        <img src="/assets/binder.svg" alt="" width="39" height="26" decoding="async">
+        <span class="footer-mark">binder</span>
+      </span>
+      <p class="footer-note">MIT licensed. Written in Go, with no dependencies.</p>
+      <a class="by-uradical" href="https://uradical.io" rel="noopener">
+        <span>An open-source library from</span>
+        <img src="/assets/uradical-logo.webp" alt="uRadical" width="132" height="26" decoding="async">
+      </a>
+    </div>
+    <nav aria-label="Footer">
+      <ul class="footer-links">
+        <li><a href="https://github.com/uRadical/binder" rel="noopener">GitHub</a></li>
+        <li><a href="https://pkg.go.dev/uradical.io/go/binder" rel="noopener">pkg.go.dev</a></li>
+        <li><a href="https://github.com/uRadical/binder/releases" rel="noopener">Releases</a></li>
+        <li><a href="https://github.com/uRadical/binder/issues" rel="noopener">Issues</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

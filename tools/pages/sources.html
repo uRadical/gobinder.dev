@@ -1,0 +1,198 @@
+title: Binding sources
+desc: The six binder struct tags — path, query, body, json, cookie and header — what each reads from the request, how repeated values fill slices, and which tag wins when a field carries more than one.
+---
+    <h1>Binding sources</h1>
+    <p class="docs-lede">
+      A field's tag says where its value comes from. There are six sources, and
+      a field may name more than one — in which case the first in the order below
+      wins.
+    </p>
+
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead><tr><th>Tag</th><th>Reads</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>path:"id"</code></td><td>Path parameters</td><td>Via <code>Request.PathValue</code>, so the router must have declared <code>{id}</code>.</td></tr>
+        <tr><td><code>query:"page"</code></td><td>URL query string</td><td>The query is parsed once per call, and only if some field asks for it.</td></tr>
+        <tr><td><code>body:"email"</code></td><td>Request body</td><td>JSON or form-encoded, chosen by <code>Content-Type</code>.</td></tr>
+        <tr><td><code>json:"email"</code></td><td>Request body</td><td>For structs whose tags are shared with serialisation.</td></tr>
+        <tr><td><code>cookie:"session"</code></td><td>Request cookies</td><td>Name matched exactly, as cookies are case-sensitive.</td></tr>
+        <tr><td><code>header:"X-Request-ID"</code></td><td>Request headers</td><td>Matched case-insensitively.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>
+      Precedence runs <code>path</code>, <code>query</code>, <code>body</code>,
+      <code>json</code>, <code>cookie</code>, <code>header</code>. A field
+      tagged both <code>query</code> and <code>header</code> is read from the
+      query string; the header is not consulted, even when the query has no such
+      key.
+    </p>
+
+    <p>
+      Fields with no binding tag are left alone, and so are unexported fields —
+      reflection cannot set them, so a tag on one is silently ignored rather
+      than an error.
+    </p>
+
+    <h2 id="path">Path parameters</h2>
+    <p>
+      binder does not route. It reads what <code>net/http</code> already
+      resolved, which means the pattern registered on the mux and the
+      <code>path:</code> tag have to agree on the name:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>mux.HandleFunc("GET /orgs/{org}/repos/{repo}", show)
+
+type Show struct {
+	Org  string `path:"org"`
+	Repo string `path:"repo"`
+}</code></pre></bd-code>
+
+    <p>
+      A path parameter the pattern never declared reads as empty. Combined with
+      <code>required</code> that surfaces as a missing value rather than a
+      mysterious zero, which is usually how a typo in either name gets found.
+    </p>
+
+    <h2 id="query">Query parameters</h2>
+    <bd-code data-lang="go"><pre><code>// GET /search?q=binder&amp;page=2&amp;tag=go&amp;tag=http
+type Search struct {
+	Q    string   `query:"q"`
+	Page int      `query:"page"`
+	Tags []string `query:"tag"`
+}</code></pre></bd-code>
+
+    <p>
+      For <code>path</code> and <code>query</code> an empty value counts as
+      missing, because neither source distinguishes “absent” from “present and
+      empty”: <code>?q=</code> and no <code>q</code> at all arrive identically.
+      That matters only in combination with
+      <a href="/docs/options.html#required"><code>required</code></a>.
+    </p>
+
+    <h2 id="body">Body: <code>body</code> and <code>json</code></h2>
+    <p>
+      <code>body:</code> is the tag to reach for. It is content-type aware, so
+      the same struct binds a JSON API call and an HTML form post:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type Signup struct {
+	Email    string `body:"email,required"`
+	Password string `body:"password,required"`
+	Referrer string `body:"ref,omitempty"`
+}</code></pre></bd-code>
+
+    <p>
+      JSON is recognised by media type, including the RFC 6839 suffix form —
+      <code>application/json</code>, <code>text/json</code>,
+      <code>application/vnd.api+json</code>, <code>application/hal+json</code>
+      and <code>application/problem+json</code> all parse as JSON. Form bodies
+      need <code>application/x-www-form-urlencoded</code>. A body whose type is
+      neither is left unread, and the request binds from its other sources.
+    </p>
+    <p>
+      A body that <em>declares</em> one of those types and then fails to parse
+      is an error, not a quiet empty bind — see
+      <a href="/docs/errors.html#malformed"><code>ErrMalformedBody</code></a>.
+    </p>
+
+    <h3 id="json-tag">When to use <code>json:</code> instead</h3>
+    <p>
+      <code>json:</code> exists for the case where a type is already tagged for
+      <code>encoding/json</code> and you would rather not tag it twice:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type Account struct {
+	ID    string `json:"id"`
+	Email string `json:"email"`
+}</code></pre></bd-code>
+
+    <div class="docs-note docs-warn">
+      binder reads its options from whichever tag it uses, so
+      <code>json:"email,required"</code> means writing an option
+      <code>encoding/json</code> does not define. Nothing breaks, but linters
+      such as staticcheck will flag it as an unknown tag option. Prefer
+      <code>body:</code> for any field that needs binder options, and keep
+      <code>json:</code> for tags shared with serialisation. Do not put both on
+      one field — <code>body</code> would win and the <code>json</code> tag
+      would be dead weight.
+    </div>
+
+    <h2 id="cookies">Cookies</h2>
+    <bd-code data-lang="go"><pre><code>type Session struct {
+	Token string `cookie:"session"`
+	Theme string `cookie:"theme,omitempty"`
+}</code></pre></bd-code>
+
+    <p>
+      A cookie that is not present binds nothing and leaves the field at its
+      zero value, unless the field is tagged <code>required</code>.
+    </p>
+
+    <h2 id="headers">Headers</h2>
+    <p>
+      Header names are matched case-insensitively, so the tag may spell one
+      however it reads best:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type Request struct {
+	Auth    string   `header:"Authorization"`
+	TraceID string   `header:"x-request-id"`
+	Accept  []string `header:"Accept"`
+}</code></pre></bd-code>
+
+    <h2 id="multipart">Multipart forms and file uploads</h2>
+    <p>
+      A <code>multipart/form-data</code> body binds its text parts like any
+      other body field, and its file parts to
+      <code>*multipart.FileHeader</code>:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type UploadRequest struct {
+	Name   string                  `body:"name"`
+	Avatar *multipart.FileHeader   `body:"avatar"`
+	Docs   []*multipart.FileHeader `body:"docs"`
+}
+
+f, err := req.Avatar.Open()</code></pre></bd-code>
+
+    <p>
+      A field given one file binds a one-element slice; a field declared as a
+      single file takes the first part sent. Binding a file part to anything
+      other than a <code>FileHeader</code> is refused rather than coerced.
+    </p>
+
+    <div class="docs-note">
+      An upload counts against <a href="/docs/options.html"><code>MaxBodySize</code></a>
+      like any other body, and is held in memory rather than written to a
+      temporary file. Raise the limit deliberately on an upload endpoint —
+      without a bound, such an endpoint is the easiest way to exhaust a
+      server's memory.
+    </div>
+
+    <h2 id="repeated">Repeated values</h2>
+    <p>
+      A query parameter, header or form field given more than once binds
+      <em>every</em> value when the destination is a slice, and its
+      <em>first</em> value otherwise:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type Request struct {
+	Tags []string `query:"tags"` // ?tags=a&amp;tags=b  -&gt;  ["a", "b"]
+	Sort string   `query:"sort"` // ?sort=a&amp;sort=b  -&gt;  "a"
+}</code></pre></bd-code>
+
+    <p>
+      A single value still binds as a one-element slice, so a handler never has
+      to special-case arity. Values are never split on commas:
+      <code>?tags=a,b</code> is one value, the string <code>"a,b"</code>. If you
+      want comma-separated input, split it yourself after binding, or bind into
+      a <a href="/docs/types.html#textunmarshaler">type that unmarshals text</a>.
+    </p>
+
+    <div class="docs-note">
+      Repeated values filling slices is new in 1.1.0. Before that only the first
+      value bound, whatever the field's type.
+    </div>

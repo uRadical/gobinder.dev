@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Validation — binder</title>
+<meta name="description" content="binder's Validator interface — implement Validate() error on a request type and it runs as part of binding — and why the library has no validation tags of its own.">
+<link rel="canonical" href="https://binder.dev/docs/validation.html">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#FBFBFD" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#080E2B" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="binder">
+<meta property="og:url" content="https://binder.dev/docs/validation.html">
+<meta property="og:title" content="Validation — binder">
+<meta property="og:description" content="binder's Validator interface — implement Validate() error on a request type and it runs as part of binding — and why the library has no validation tags of its own.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Validation — binder">
+<meta name="twitter:description" content="binder's Validator interface — implement Validate() error on a request type and it runs as part of binding — and why the library has no validation tags of its own.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sen:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/site.css">
+<link rel="stylesheet" href="/assets/css/docs.css">
+<script src="/assets/js/components.js" type="module"></script>
+<script>
+  // Applied before first paint so a stored theme choice never flashes.
+  try {
+    var t = localStorage.getItem('bd-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="wordmark" href="/">
+      <img class="mark" src="/assets/binder.svg" alt="" width="36" height="24" decoding="async">
+      <span>binder</span>
+    </a>
+    <nav aria-label="Primary">
+      <ul class="nav">
+        <li><a href="/#why">Why</a></li>
+        <li><a href="/#sources">Sources</a></li>
+        <li><a href="/docs/" aria-current="page">Docs</a></li>
+        <li><a href="/#install">Install</a></li>
+      </ul>
+    </nav>
+    <div class="header-actions">
+      <a class="icon-link" href="https://github.com/uRadical/binder" rel="noopener"
+         aria-label="binder on GitHub" title="GitHub"><svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+      <bd-theme-toggle></bd-theme-toggle>
+    </div>
+  </div>
+</header>
+
+<div class="wrap docs-layout">
+  <nav class="docs-nav" aria-label="Documentation">
+      <p class="docs-version">Documents <strong>v1.1.0</strong></p>
+      <p class="docs-nav-title">Getting started</p>
+      <ul>
+        <li><a href="/docs/">Overview</a></li>
+        <li><a href="/docs/install.html">Install &amp; quick start</a></li>
+        <li><a href="/docs/sources.html">Binding sources</a></li>
+      </ul>
+      <p class="docs-nav-title">Reference</p>
+      <ul>
+        <li><a href="/docs/types.html">Types &amp; conversion</a></li>
+        <li><a href="/docs/options.html">Options</a></li>
+        <li><a href="/docs/errors.html">Error handling</a></li>
+        <li><a href="/docs/validation.html" class="on">Validation</a></li>
+        <li><a href="/docs/api.html">API reference</a></li>
+      </ul>
+      <p class="docs-nav-title">Project</p>
+      <ul>
+        <li><a href="/docs/performance.html">Performance</a></li>
+        <li><a href="/docs/comparison.html">Comparison</a></li>
+        <li><a href="/docs/compatibility.html">Compatibility</a></li>
+      </ul>
+  </nav>
+
+  <main id="main" class="docs-main">
+    <p class="crumb"><a href="/">binder</a> / <a href="/docs/">Docs</a> / Validation</p>
+    <h1>Validation</h1>
+    <p class="docs-lede">
+      binder binds; it does not validate. What it offers is a single hook, so
+      that your own rules run as part of the same call and a handler has one
+      error path rather than two.
+    </p>
+
+    <h2 id="validator">The Validator interface</h2>
+
+    <bd-code data-lang="go"><pre><code>type Validator interface {
+	Validate() error
+}</code></pre></bd-code>
+
+    <p>
+      If the target implements it, <code>Bind</code> calls
+      <code>Validate</code> after every field is bound and returns whatever it
+      returns. Nothing to register, nothing to configure:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type CreateUser struct {
+	Name  string `body:"name"`
+	Email string `body:"email"`
+	Age   int    `body:"age"`
+}
+
+func (r CreateUser) Validate() error {
+	if r.Name == "" {
+		return errors.New("name is required")
+	}
+	if !strings.Contains(r.Email, "@") {
+		return errors.New("email must be an address")
+	}
+	if r.Age &lt; 18 {
+		return errors.New("user must be 18 or older")
+	}
+	return nil
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	var req CreateUser
+
+	// One step: bind, then validate.
+	if err := binder.Bind(r, &amp;req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// req is bound and valid.
+	json.NewEncoder(w).Encode(createUser(req))
+}</code></pre></bd-code>
+
+    <p>
+      A value receiver, as above, works on the pointer <code>Bind</code> is
+      given. A pointer receiver works too, and is what you want if
+      <code>Validate</code> normalises as well as checks — trimming whitespace,
+      lower-casing an address, filling a default.
+    </p>
+
+    <h2 id="errors">Reporting several problems</h2>
+    <p>
+      Binding stops at the first failure, but <code>Validate</code> is your
+      code and can collect as many as it likes. <code>errors.Join</code> is
+      usually enough:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>func (r CreateUser) Validate() error {
+	var problems []error
+	if r.Name == "" {
+		problems = append(problems, errors.New("name is required"))
+	}
+	if r.Age &lt; 18 {
+		problems = append(problems, errors.New("must be 18 or older"))
+	}
+	return errors.Join(problems...)
+}</code></pre></bd-code>
+
+    <p>
+      Returning your own error type works just as well, and
+      <code>errors.As</code> will find it through binder — so a handler can
+      render a field-by-field JSON response while still treating a bind failure
+      and a validation failure the same way.
+    </p>
+
+    <h2 id="why-not">Why there are no validation tags</h2>
+    <p>
+      A <code>min</code>, <code>max</code>, <code>email</code> tag vocabulary is
+      the obvious next feature and deliberately absent. Adding it would mean
+      inventing a rule language, an error format and a translation story, and
+      the result would be a worse version of what
+      <a href="https://github.com/go-playground/validator" rel="noopener">go-playground/validator</a>
+      already does well. binder stays small enough to read in one sitting, and
+      composes with whichever validator you prefer:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>var validate = validator.New()
+
+type CreateUser struct {
+	Email string `body:"email" validate:"required,email"`
+	Age   int    `body:"age"   validate:"gte=18"`
+}
+
+func (r CreateUser) Validate() error {
+	return validate.Struct(r)
+}</code></pre></bd-code>
+
+    <p>
+      The two tags coexist: binder reads <code>body</code>, the validator reads
+      <code>validate</code>, and neither knows about the other.
+    </p>
+
+    <div class="docs-note">
+      <code>required</code> in a binder tag is not validation — it asks whether
+      the request <em>supplied</em> the value, before any conversion. “Must be
+      present” is a binding question; “must be a valid email” is a validation
+      one. See <a href="/docs/options.html#required">Options</a>.
+    </div>
+
+    <nav class="docs-pager" aria-label="Pagination">
+      <a class="prev" href="/docs/errors.html">Error handling</a>
+      <a class="next" href="/docs/api.html">API reference</a>
+    </nav>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div>
+      <span class="footer-brand">
+        <img src="/assets/binder.svg" alt="" width="39" height="26" decoding="async">
+        <span class="footer-mark">binder</span>
+      </span>
+      <p class="footer-note">MIT licensed. Written in Go, with no dependencies.</p>
+      <a class="by-uradical" href="https://uradical.io" rel="noopener">
+        <span>An open-source library from</span>
+        <img src="/assets/uradical-logo.webp" alt="uRadical" width="132" height="26" decoding="async">
+      </a>
+    </div>
+    <nav aria-label="Footer">
+      <ul class="footer-links">
+        <li><a href="https://github.com/uRadical/binder" rel="noopener">GitHub</a></li>
+        <li><a href="https://pkg.go.dev/uradical.io/go/binder" rel="noopener">pkg.go.dev</a></li>
+        <li><a href="https://github.com/uRadical/binder/releases" rel="noopener">Releases</a></li>
+        <li><a href="https://github.com/uRadical/binder/issues" rel="noopener">Issues</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparison — binder</title>
+<meta name="description" content="binder measured against Echo, Gin, gorilla/schema and hand-written stdlib code — the method, the version of each library, and what each was asked to do.">
+<link rel="canonical" href="https://binder.dev/docs/comparison.html">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#FBFBFD" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#080E2B" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="binder">
+<meta property="og:url" content="https://binder.dev/docs/comparison.html">
+<meta property="og:title" content="Comparison — binder">
+<meta property="og:description" content="binder measured against Echo, Gin, gorilla/schema and hand-written stdlib code — the method, the version of each library, and what each was asked to do.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Comparison — binder">
+<meta name="twitter:description" content="binder measured against Echo, Gin, gorilla/schema and hand-written stdlib code — the method, the version of each library, and what each was asked to do.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sen:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/site.css">
+<link rel="stylesheet" href="/assets/css/docs.css">
+<script src="/assets/js/components.js" type="module"></script>
+<script>
+  // Applied before first paint so a stored theme choice never flashes.
+  try {
+    var t = localStorage.getItem('bd-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="wordmark" href="/">
+      <img class="mark" src="/assets/binder.svg" alt="" width="36" height="24" decoding="async">
+      <span>binder</span>
+    </a>
+    <nav aria-label="Primary">
+      <ul class="nav">
+        <li><a href="/#why">Why</a></li>
+        <li><a href="/#sources">Sources</a></li>
+        <li><a href="/docs/" aria-current="page">Docs</a></li>
+        <li><a href="/#install">Install</a></li>
+      </ul>
+    </nav>
+    <div class="header-actions">
+      <a class="icon-link" href="https://github.com/uRadical/binder" rel="noopener"
+         aria-label="binder on GitHub" title="GitHub"><svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+      <bd-theme-toggle></bd-theme-toggle>
+    </div>
+  </div>
+</header>
+
+<div class="wrap docs-layout">
+  <nav class="docs-nav" aria-label="Documentation">
+      <p class="docs-version">Documents <strong>v1.1.0</strong></p>
+      <p class="docs-nav-title">Getting started</p>
+      <ul>
+        <li><a href="/docs/">Overview</a></li>
+        <li><a href="/docs/install.html">Install &amp; quick start</a></li>
+        <li><a href="/docs/sources.html">Binding sources</a></li>
+      </ul>
+      <p class="docs-nav-title">Reference</p>
+      <ul>
+        <li><a href="/docs/types.html">Types &amp; conversion</a></li>
+        <li><a href="/docs/options.html">Options</a></li>
+        <li><a href="/docs/errors.html">Error handling</a></li>
+        <li><a href="/docs/validation.html">Validation</a></li>
+        <li><a href="/docs/api.html">API reference</a></li>
+      </ul>
+      <p class="docs-nav-title">Project</p>
+      <ul>
+        <li><a href="/docs/performance.html">Performance</a></li>
+        <li><a href="/docs/comparison.html" class="on">Comparison</a></li>
+        <li><a href="/docs/compatibility.html">Compatibility</a></li>
+      </ul>
+  </nav>
+
+  <main id="main" class="docs-main">
+    <p class="crumb"><a href="/">binder</a> / <a href="/docs/">Docs</a> / Comparison</p>
+    <h1>Comparison</h1>
+    <p class="docs-lede">
+      Numbers for one library on its own say little. These bind the same
+      request into the same shape of struct with binder, Echo, Gin,
+      gorilla/schema and hand-written standard library code, so the cost of
+      each approach can be read against the others.
+    </p>
+
+    <div class="docs-note">
+      Read the method before the tables. Two of the figures here changed
+      materially once a measurement fault was found, and one of those faults
+      had been flattering a competitor. A benchmark you cannot reproduce is
+      an advertisement.
+    </div>
+
+    <h2 id="method">Method</h2>
+    <p>
+      Apple M-series laptop, Go 1.27, <code>-benchtime=300ms -count=6</code>,
+      median of six runs. Libraries at Echo v4.15.4, Gin v1.12.0,
+      gorilla/schema v1.4.1.
+    </p>
+    <p>
+      The comparison lives in its own Go module, so nothing it imports reaches
+      binder's own <em>go.mod</em>:
+    </p>
+
+    <bd-code><pre><code>cd benchmarks
+go test -bench . -benchmem</code></pre></bd-code>
+
+    <h3 id="fairness">What was held equal</h3>
+    <p>
+      Framework setup is kept out of the timed loop wherever the library allows
+      a context to be reused, since constructing a context is not binding. The
+      request is built once and its body re-armed between iterations, so
+      <code>httptest.NewRequest</code> is not folded into any figure — it costs
+      more memory than the binding under test.
+    </p>
+
+    <h3 id="echo-cache">The correction worth knowing about</h3>
+    <p>
+      Echo caches the parsed query on its context, and
+      <code>SetRequest</code> does not clear it. Reusing one context across
+      iterations therefore measures a single parse for the whole run: Echo
+      came out at <strong>556 ns and one allocation</strong>, a figure no real
+      server would ever see. The loop now calls <code>Reset</code>, which is
+      what Echo's own server calls per request, and Echo measures 871 ns and
+      eight allocations.
+    </p>
+    <p>
+      If you reproduce these and get Echo faster than binder, this is why.
+      The uncorrected number favoured Echo; correcting it favoured binder, so
+      it is stated here rather than left in a commit message.
+    </p>
+
+    <h3 id="unequal">What is not equal</h3>
+    <p>
+      The libraries do not do the same amount of work, and no weighting can
+      make them. Binder reads every source in one call. Echo's binder reads
+      path, query and body. Gin needs a call per source. gorilla/schema
+      decodes a <code>url.Values</code> and nothing else. Each table below says
+      what was asked of each.
+    </p>
+
+    <h2 id="at-a-glance">At a glance</h2>
+    <p>
+      Both measures, all three shapes. Every bar is labelled and every number
+      appears in the tables below, so nothing here depends on telling the
+      colours apart — binder is picked out only to save you hunting for it.
+    </p>
+
+    <h3 id="glance-time">Time per bind</h3>
+    <figure class="bench-figure">
+<svg class="bench-panel" viewBox="0 0 328 164" role="img" aria-label="Query string, 5 fields: hand-written stdlib 363; binder 661; Echo 871; Gin 1104; gorilla/schema 1944">
+  <text class="panel-title" x="0" y="12">Query string, 5 fields</text>
+  <g><title>hand-written stdlib: 363</title>
+    <text class="bar-label" x="124" y="38">hand-written stdlib</text>
+    <path class="bar" d="M132,26 H156.00925925925927 a4.0,4.0 0 0 1 4.0,4.0 V38.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="167.00925925925927" y="38">363</text>
+  </g>
+  <g><title>binder: 661</title>
+    <text class="bar-label" x="124" y="66">binder</text>
+    <path class="bar bar-self" d="M132,54 H179.0030864197531 a4.0,4.0 0 0 1 4.0,4.0 V66.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="190.0030864197531" y="66">661</text>
+  </g>
+  <g><title>Echo: 871</title>
+    <text class="bar-label" x="124" y="94">Echo</text>
+    <path class="bar" d="M132,82 H195.20679012345678 a4.0,4.0 0 0 1 4.0,4.0 V94.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="206.20679012345678" y="94">871</text>
+  </g>
+  <g><title>Gin: 1104</title>
+    <text class="bar-label" x="124" y="122">Gin</text>
+    <path class="bar" d="M132,110 H213.18518518518516 a4.0,4.0 0 0 1 4.0,4.0 V122.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="224.18518518518516" y="122">1,104</text>
+  </g>
+  <g><title>gorilla/schema: 1944</title>
+    <text class="bar-label" x="124" y="150">gorilla/schema</text>
+    <path class="bar" d="M132,138 H278.0 a4.0,4.0 0 0 1 4.0,4.0 V150.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="289.0" y="150">1,944</text>
+  </g>
+  <line class="axis" x1="132" y1="20" x2="132" y2="156"/>
+</svg>
+<svg class="bench-panel" viewBox="0 0 328 136" role="img" aria-label="JSON body, 5 fields: hand-written stdlib 741; binder 799; Echo 816; Gin 856">
+  <text class="panel-title" x="0" y="12">JSON body, 5 fields</text>
+  <g><title>hand-written stdlib: 741</title>
+    <text class="bar-label" x="124" y="38">hand-written stdlib</text>
+    <path class="bar" d="M132,26 H185.17592592592592 a4.0,4.0 0 0 1 4.0,4.0 V38.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="196.17592592592592" y="38">741</text>
+  </g>
+  <g><title>binder: 799</title>
+    <text class="bar-label" x="124" y="66">binder</text>
+    <path class="bar bar-self" d="M132,54 H189.65123456790124 a4.0,4.0 0 0 1 4.0,4.0 V66.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="200.65123456790124" y="66">799</text>
+  </g>
+  <g><title>Echo: 816</title>
+    <text class="bar-label" x="124" y="94">Echo</text>
+    <path class="bar" d="M132,82 H190.96296296296296 a4.0,4.0 0 0 1 4.0,4.0 V94.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="201.96296296296296" y="94">816</text>
+  </g>
+  <g><title>Gin: 856</title>
+    <text class="bar-label" x="124" y="122">Gin</text>
+    <path class="bar" d="M132,110 H194.04938271604937 a4.0,4.0 0 0 1 4.0,4.0 V122.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="205.04938271604937" y="122">856</text>
+  </g>
+  <line class="axis" x1="132" y1="20" x2="132" y2="128"/>
+</svg>
+<svg class="bench-panel" viewBox="0 0 328 108" role="img" aria-label="Every source at once: binder 1131; Echo 1327; Gin 1464">
+  <text class="panel-title" x="0" y="12">Every source at once</text>
+  <g><title>binder: 1131</title>
+    <text class="bar-label" x="124" y="38">binder</text>
+    <path class="bar bar-self" d="M132,26 H215.26851851851853 a4.0,4.0 0 0 1 4.0,4.0 V38.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="226.26851851851853" y="38">1,131</text>
+  </g>
+  <g><title>Echo: 1327</title>
+    <text class="bar-label" x="124" y="66">Echo</text>
+    <path class="bar" d="M132,54 H230.39197530864197 a4.0,4.0 0 0 1 4.0,4.0 V66.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="241.39197530864197" y="66">1,327</text>
+  </g>
+  <g><title>Gin: 1464</title>
+    <text class="bar-label" x="124" y="94">Gin</text>
+    <path class="bar" d="M132,82 H240.96296296296296 a4.0,4.0 0 0 1 4.0,4.0 V94.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="251.96296296296296" y="94">1,464</text>
+  </g>
+  <line class="axis" x1="132" y1="20" x2="132" y2="100"/>
+</svg>
+      <figcaption>Nanoseconds per bind — lower is better. Shared scale across the three panels, so the bars are comparable between them.</figcaption>
+    </figure>
+
+    <h3 id="glance-allocs">Allocations per bind</h3>
+    <figure class="bench-figure">
+<svg class="bench-panel" viewBox="0 0 328 164" role="img" aria-label="Query string, 5 fields: hand-written stdlib 7; Echo 8; Gin 9; binder 14; gorilla/schema 46">
+  <text class="panel-title" x="0" y="12">Query string, 5 fields</text>
+  <g><title>hand-written stdlib: 7</title>
+    <text class="bar-label" x="124" y="38">hand-written stdlib</text>
+    <path class="bar" d="M132,26 H150.82608695652175 a4.0,4.0 0 0 1 4.0,4.0 V38.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="161.82608695652175" y="38">7</text>
+  </g>
+  <g><title>Echo: 8</title>
+    <text class="bar-label" x="124" y="66">Echo</text>
+    <path class="bar" d="M132,54 H154.08695652173913 a4.0,4.0 0 0 1 4.0,4.0 V66.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="165.08695652173913" y="66">8</text>
+  </g>
+  <g><title>Gin: 9</title>
+    <text class="bar-label" x="124" y="94">Gin</text>
+    <path class="bar" d="M132,82 H157.34782608695653 a4.0,4.0 0 0 1 4.0,4.0 V94.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="168.34782608695653" y="94">9</text>
+  </g>
+  <g><title>binder: 14</title>
+    <text class="bar-label" x="124" y="122">binder</text>
+    <path class="bar bar-self" d="M132,110 H173.6521739130435 a4.0,4.0 0 0 1 4.0,4.0 V122.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="184.6521739130435" y="122">14</text>
+  </g>
+  <g><title>gorilla/schema: 46</title>
+    <text class="bar-label" x="124" y="150">gorilla/schema</text>
+    <path class="bar" d="M132,138 H278.0 a4.0,4.0 0 0 1 4.0,4.0 V150.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="289.0" y="150">46</text>
+  </g>
+  <line class="axis" x1="132" y1="20" x2="132" y2="156"/>
+</svg>
+<svg class="bench-panel" viewBox="0 0 328 136" role="img" aria-label="JSON body, 5 fields: hand-written stdlib 8; Echo 8; Gin 8; binder 23">
+  <text class="panel-title" x="0" y="12">JSON body, 5 fields</text>
+  <g><title>hand-written stdlib: 8</title>
+    <text class="bar-label" x="124" y="38">hand-written stdlib</text>
+    <path class="bar" d="M132,26 H154.08695652173913 a4.0,4.0 0 0 1 4.0,4.0 V38.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="165.08695652173913" y="38">8</text>
+  </g>
+  <g><title>Echo: 8</title>
+    <text class="bar-label" x="124" y="66">Echo</text>
+    <path class="bar" d="M132,54 H154.08695652173913 a4.0,4.0 0 0 1 4.0,4.0 V66.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="165.08695652173913" y="66">8</text>
+  </g>
+  <g><title>Gin: 8</title>
+    <text class="bar-label" x="124" y="94">Gin</text>
+    <path class="bar" d="M132,82 H154.08695652173913 a4.0,4.0 0 0 1 4.0,4.0 V94.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="165.08695652173913" y="94">8</text>
+  </g>
+  <g><title>binder: 23</title>
+    <text class="bar-label" x="124" y="122">binder</text>
+    <path class="bar bar-self" d="M132,110 H203.0 a4.0,4.0 0 0 1 4.0,4.0 V122.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="214.0" y="122">23</text>
+  </g>
+  <line class="axis" x1="132" y1="20" x2="132" y2="128"/>
+</svg>
+<svg class="bench-panel" viewBox="0 0 328 108" role="img" aria-label="Every source at once: Echo 15; Gin 21; binder 27">
+  <text class="panel-title" x="0" y="12">Every source at once</text>
+  <g><title>Echo: 15</title>
+    <text class="bar-label" x="124" y="38">Echo</text>
+    <path class="bar" d="M132,26 H176.91304347826087 a4.0,4.0 0 0 1 4.0,4.0 V38.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="187.91304347826087" y="38">15</text>
+  </g>
+  <g><title>Gin: 21</title>
+    <text class="bar-label" x="124" y="66">Gin</text>
+    <path class="bar" d="M132,54 H196.47826086956522 a4.0,4.0 0 0 1 4.0,4.0 V66.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="207.47826086956522" y="66">21</text>
+  </g>
+  <g><title>binder: 27</title>
+    <text class="bar-label" x="124" y="94">binder</text>
+    <path class="bar bar-self" d="M132,82 H216.04347826086956 a4.0,4.0 0 0 1 4.0,4.0 V94.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+    <text class="bar-value" x="227.04347826086956" y="94">27</text>
+  </g>
+  <line class="axis" x1="132" y1="20" x2="132" y2="100"/>
+</svg>
+      <figcaption>Allocations per bind — lower is better. Shared scale across the three panels, so the bars are comparable between them.</figcaption>
+    </figure>
+
+    <p>
+      The shape of it: binder leads on the query string and on filling a struct
+      from every source, and is level with Echo on a JSON body. It allocates
+      more than the framework binders on that JSON body, some of which is the
+      cost of putting the body back for middleware to read — a guarantee the
+      others do not make.
+    </p>
+
+    <h2 id="query">Query string, five fields</h2>
+    <p>
+      Every library binds the same five query parameters into a struct of
+      string, int, bool, string, string.
+    </p>
+
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr><th>Implementation</th><th class="num">ns/op</th><th class="num">B/op</th><th class="num">allocs/op</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>hand-written stdlib</td><td class="num">363</td><td class="num">480</td><td class="num">7</td></tr>
+        <tr><td><strong>binder</strong></td><td class="num">661</td><td class="num">672</td><td class="num">14</td></tr>
+        <tr><td>Echo</td><td class="num">871</td><td class="num">544</td><td class="num">8</td></tr>
+        <tr><td>Gin</td><td class="num">1,104</td><td class="num">608</td><td class="num">9</td></tr>
+        <tr><td>gorilla/schema</td><td class="num">1,944</td><td class="num">1,367</td><td class="num">46</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>
+      Reading fields by name with <code>strconv</code> is the floor, and it is
+      1.8&times; faster than the quickest reflective binder. That gap is what
+      reflection costs; whether it is worth paying depends on how many handlers
+      you would otherwise write by hand.
+    </p>
+
+    <h2 id="json">JSON body, five fields</h2>
+    <p>
+      The same five values, this time as a JSON object. gorilla/schema is
+      absent because it does not read bodies.
+    </p>
+
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr><th>Implementation</th><th class="num">ns/op</th><th class="num">B/op</th><th class="num">allocs/op</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>hand-written stdlib</td><td class="num">741</td><td class="num">681</td><td class="num">8</td></tr>
+        <tr><td><strong>binder</strong></td><td class="num">799</td><td class="num">1,240</td><td class="num">23</td></tr>
+        <tr><td>Echo</td><td class="num">816</td><td class="num">681</td><td class="num">8</td></tr>
+        <tr><td>Gin</td><td class="num">856</td><td class="num">681</td><td class="num">8</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>
+      Binder is the quickest of the three by a small margin, and within eight
+      per cent of decoding straight into the struct by hand. It also
+      <strong>allocates roughly three times as much</strong>. Echo and Gin hand
+      the body to <code>encoding/json</code> and let it fill the struct;
+      binder walks the body itself so that a member can be converted by its own
+      rules — a JSON string into an integer field, a
+      <code>TextUnmarshaler</code>, a value bound alongside a path parameter.
+      Values that do not take the direct path still pass through an interface,
+      and that is where the extra allocations are.
+    </p>
+
+    <h2 id="mixed">Every source at once</h2>
+    <p>
+      Filling one struct from a path value, a query parameter, a JSON body, a
+      header and a cookie. Binder does it in one call; Echo takes three plus
+      two manual reads, Gin takes four. The comparison is of the whole job.
+    </p>
+
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr><th>Implementation</th><th class="num">ns/op</th><th class="num">B/op</th><th class="num">allocs/op</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>binder</strong> — one call</td><td class="num">1,131</td><td class="num">1,928</td><td class="num">27</td></tr>
+        <tr><td>Echo — three calls plus manual reads</td><td class="num">1,327</td><td class="num">1,202</td><td class="num">15</td></tr>
+        <tr><td>Gin — four calls plus manual reads</td><td class="num">1,464</td><td class="num">1,644</td><td class="num">21</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>
+      This is the case binder exists for, and the margin is still only about
+      fifteen per cent. The stronger argument is the one the table cannot show:
+      one call and one error, against four calls whose failures you have to
+      combine yourself.
+    </p>
+
+    <h2 id="conclusion">What to take from this</h2>
+    <p>
+      Binder is the quickest of the reflective binders measured, in all three
+      shapes, and it allocates more than Echo or Gin on a JSON body. Both are
+      true, and on any endpoint that touches a database neither matters: the
+      whole spread here is under a microsecond.
+    </p>
+    <p>
+      If you already use Echo or Gin, their binders are built in and near
+      enough in cost that switching for speed would be difficult to justify.
+      The reason to reach for binder is that you are on
+      <code>net/http</code> and want one call to fill a struct from every part
+      of the request. That these numbers are competitive is the point — it
+      means choosing it costs you nothing.
+    </p>
+
+    <div class="docs-note">
+      Measured on one machine, one Go version and one shape of struct, against
+      the library versions named above. Results move with all four. Run
+      <code>go test -bench .</code> in <em>benchmarks/</em> on your own
+      hardware before drawing a conclusion that matters to you.
+    </div>
+
+    <nav class="docs-pager" aria-label="Pagination">
+      <a class="prev" href="/docs/performance.html">Performance</a>
+      <a class="next" href="/docs/compatibility.html">Compatibility</a>
+    </nav>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div>
+      <span class="footer-brand">
+        <img src="/assets/binder.svg" alt="" width="39" height="26" decoding="async">
+        <span class="footer-mark">binder</span>
+      </span>
+      <p class="footer-note">MIT licensed. Written in Go, with no dependencies.</p>
+      <a class="by-uradical" href="https://uradical.io" rel="noopener">
+        <span>An open-source library from</span>
+        <img src="/assets/uradical-logo.webp" alt="uRadical" width="132" height="26" decoding="async">
+      </a>
+    </div>
+    <nav aria-label="Footer">
+      <ul class="footer-links">
+        <li><a href="https://github.com/uRadical/binder" rel="noopener">GitHub</a></li>
+        <li><a href="https://pkg.go.dev/uradical.io/go/binder" rel="noopener">pkg.go.dev</a></li>
+        <li><a href="https://github.com/uRadical/binder/releases" rel="noopener">Releases</a></li>
+        <li><a href="https://github.com/uRadical/binder/issues" rel="noopener">Issues</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

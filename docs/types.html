@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Types &amp; conversion — binder</title>
+<meta name="description" content="Which Go types binder can fill — strings, numbers, bools, slices, pointers, nested structs — how values are converted from each source, and how to bind a type of your own with encoding.TextUnmarshaler.">
+<link rel="canonical" href="https://binder.dev/docs/types.html">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#FBFBFD" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#080E2B" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="binder">
+<meta property="og:url" content="https://binder.dev/docs/types.html">
+<meta property="og:title" content="Types &amp; conversion — binder">
+<meta property="og:description" content="Which Go types binder can fill — strings, numbers, bools, slices, pointers, nested structs — how values are converted from each source, and how to bind a type of your own with encoding.TextUnmarshaler.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Types &amp; conversion — binder">
+<meta name="twitter:description" content="Which Go types binder can fill — strings, numbers, bools, slices, pointers, nested structs — how values are converted from each source, and how to bind a type of your own with encoding.TextUnmarshaler.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sen:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/site.css">
+<link rel="stylesheet" href="/assets/css/docs.css">
+<script src="/assets/js/components.js" type="module"></script>
+<script>
+  // Applied before first paint so a stored theme choice never flashes.
+  try {
+    var t = localStorage.getItem('bd-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="wordmark" href="/">
+      <img class="mark" src="/assets/binder.svg" alt="" width="36" height="24" decoding="async">
+      <span>binder</span>
+    </a>
+    <nav aria-label="Primary">
+      <ul class="nav">
+        <li><a href="/#why">Why</a></li>
+        <li><a href="/#sources">Sources</a></li>
+        <li><a href="/docs/" aria-current="page">Docs</a></li>
+        <li><a href="/#install">Install</a></li>
+      </ul>
+    </nav>
+    <div class="header-actions">
+      <a class="icon-link" href="https://github.com/uRadical/binder" rel="noopener"
+         aria-label="binder on GitHub" title="GitHub"><svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+      <bd-theme-toggle></bd-theme-toggle>
+    </div>
+  </div>
+</header>
+
+<div class="wrap docs-layout">
+  <nav class="docs-nav" aria-label="Documentation">
+      <p class="docs-version">Documents <strong>v1.1.0</strong></p>
+      <p class="docs-nav-title">Getting started</p>
+      <ul>
+        <li><a href="/docs/">Overview</a></li>
+        <li><a href="/docs/install.html">Install &amp; quick start</a></li>
+        <li><a href="/docs/sources.html">Binding sources</a></li>
+      </ul>
+      <p class="docs-nav-title">Reference</p>
+      <ul>
+        <li><a href="/docs/types.html" class="on">Types &amp; conversion</a></li>
+        <li><a href="/docs/options.html">Options</a></li>
+        <li><a href="/docs/errors.html">Error handling</a></li>
+        <li><a href="/docs/validation.html">Validation</a></li>
+        <li><a href="/docs/api.html">API reference</a></li>
+      </ul>
+      <p class="docs-nav-title">Project</p>
+      <ul>
+        <li><a href="/docs/performance.html">Performance</a></li>
+        <li><a href="/docs/comparison.html">Comparison</a></li>
+        <li><a href="/docs/compatibility.html">Compatibility</a></li>
+      </ul>
+  </nav>
+
+  <main id="main" class="docs-main">
+    <p class="crumb"><a href="/">binder</a> / <a href="/docs/">Docs</a> / Types &amp; conversion</p>
+    <h1>Types &amp; conversion</h1>
+    <p class="docs-lede">
+      Every source except a JSON body hands binder a string; a JSON body hands
+      it whatever <code>encoding/json</code> decoded. Either way the value is
+      converted to the field's type, and a value that will not convert is an
+      error naming the field rather than a zero value quietly left in place.
+    </p>
+
+    <h2 id="supported">What binds</h2>
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead><tr><th>Field type</th><th>Behaviour</th></tr></thead>
+      <tbody>
+        <tr><td><code>string</code></td><td>Taken as-is. Non-string JSON values are formatted, so a JSON number bound to a string field gives its text.</td></tr>
+        <tr><td><code>int</code>, <code>int8</code> … <code>int64</code></td><td>Parsed base 10 from a string; taken directly from a JSON number. <code>1e5</code> and <code>1.0</code> go through float and truncate.</td></tr>
+        <tr><td><code>uint</code>, <code>uint8</code> … <code>uint64</code></td><td>As above, and a negative value is an error rather than a wrap-around.</td></tr>
+        <tr><td><code>float32</code>, <code>float64</code></td><td>Parsed with <code>strconv.ParseFloat</code>, or taken from a JSON number.</td></tr>
+        <tr><td><code>bool</code></td><td><code>strconv.ParseBool</code>, so <code>1</code>, <code>t</code>, <code>T</code>, <code>true</code>, <code>TRUE</code> and their false counterparts. A JSON number is true when non-zero.</td></tr>
+        <tr><td><code>[]T</code></td><td>Each element converted as <code>T</code>. See <a href="#slices">Slices</a>.</td></tr>
+        <tr><td><code>*T</code></td><td>Allocated if nil, then filled as <code>T</code>. A missing value leaves the pointer nil, which is how you tell “absent” from “sent as zero”.</td></tr>
+        <tr><td>a <code>struct</code></td><td>Filled from a nested JSON object. See <a href="#nested">Nested structs</a>.</td></tr>
+        <tr><td>anything with <code>UnmarshalText</code></td><td>Handed the raw text before any of the above. See <a href="#textunmarshaler">Custom types</a>.</td></tr>
+        <tr><td><code>[N]T</code></td><td><strong>Not supported.</strong> Fixed-size arrays are an error; use a slice.</td></tr>
+        <tr><td><code>map</code>, <code>chan</code>, <code>func</code></td><td><strong>Not supported.</strong> Reported as an unsupported type.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h2 id="strings-vs-json">Strings in, typed values out</h2>
+    <p>
+      A query string has no types. <code>?page=2&amp;draft=true</code> is two
+      strings, and it is the field that decides what they mean:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type List struct {
+	Page  int     `query:"page"`  // "2"    -&gt; 2
+	Draft bool    `query:"draft"` // "true" -&gt; true
+	Ratio float64 `query:"ratio"` // "0.75" -&gt; 0.75
+}</code></pre></bd-code>
+
+    <p>
+      Send <code>?page=two</code> and binding fails with a
+      <a href="/docs/errors.html"><code>BindError</code></a> naming
+      <code>Page</code>, the source <code>query</code> and the key
+      <code>page</code> — enough to write a useful 400 without guessing.
+    </p>
+
+    <h3 id="overflow">A value the field cannot hold is refused</h3>
+    <p>
+      Conversion is checked against the destination's range, so a number too
+      large for its field fails rather than wrapping:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type Request struct {
+	Small int8 `query:"n"` // ?n=9999 -&gt; error, not 15
+}</code></pre></bd-code>
+
+    <p>
+      Reflection truncates on assignment, so without the check
+      <code>9999</code> would bind silently as <code>15</code>. The same guard
+      applies to unsigned and floating-point fields, and to every source.
+    </p>
+
+    <h2 id="slices">Slices</h2>
+    <p>A slice fills from either shape of repeated input:</p>
+
+    <bd-code data-lang="go"><pre><code>type Request struct {
+	// ?tag=go&amp;tag=http, or a repeated form field
+	Tags []string `query:"tag"`
+
+	// {"scores": [1, 2, 3]} in a JSON body
+	Scores []int `body:"scores"`
+
+	// A JSON array of objects binds element by element
+	Items []Item `body:"items"`
+}</code></pre></bd-code>
+
+    <p>
+      A single value binds as a one-element slice, so a handler never has to
+      special-case arity. Elements are converted individually, and an element
+      that will not convert reports its index.
+    </p>
+
+    <div class="docs-note docs-warn">
+      Fixed-size arrays are rejected on purpose. <code>[3]string</code> asks the
+      request to supply exactly three values and gives binder no good answer
+      when it supplies two, so the library declines rather than pick one. Use
+      <code>[]string</code> and check the length yourself.
+    </div>
+
+    <h2 id="pointers">Pointers</h2>
+    <p>
+      A pointer field is the way to distinguish a value that was not sent from
+      one that was sent as zero — the difference between “leave this alone” and
+      “set it to 0” in a PATCH handler:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type PatchSettings struct {
+	// nil  -&gt; the client did not mention retries
+	// &amp;0   -&gt; the client asked for zero retries
+	Retries *int `body:"retries"`
+}</code></pre></bd-code>
+
+    <h2 id="nested">Nested structs</h2>
+    <p>
+      A struct field binds from a nested JSON object. Its own fields are matched
+      on their <code>body</code> tag, falling back to <code>json</code> — the
+      other four sources have no nesting to read, so they are not consulted
+      inside a nested struct:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type Address struct {
+	Street string `body:"street"`
+	City   string `body:"city"`
+}
+
+type User struct {
+	Name    string  `body:"name"`
+	Address Address `body:"address"`
+}</code></pre></bd-code>
+
+    <bd-code><pre><code>{"name": "ada", "address": {"street": "1 Main St", "city": "London"}}</code></pre></bd-code>
+
+    <p>
+      Nesting works to any depth, and a <code>*Address</code> is allocated when
+      the key is present. A key absent from the object leaves its field
+      untouched.
+    </p>
+
+    <div class="docs-note">
+      Form bodies are flat, so nested structs only fill from JSON. A form field
+      literally named <code>address</code> cannot describe an object.
+    </div>
+
+    <h2 id="textunmarshaler">Custom types</h2>
+    <p>
+      Any type implementing <code>encoding.TextUnmarshaler</code> is handed the
+      raw text and decides for itself. This is the extension point: it covers
+      enums, identifiers, dates in a house format and anything else a string
+      needs to become.
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type Status string
+
+const (
+	StatusOpen   Status = "open"
+	StatusClosed Status = "closed"
+)
+
+func (s *Status) UnmarshalText(text []byte) error {
+	switch Status(text) {
+	case StatusOpen, StatusClosed:
+		*s = Status(text)
+		return nil
+	default:
+		return fmt.Errorf("unknown status %q", text)
+	}
+}
+
+type Filter struct {
+	Status Status `query:"status"`
+}</code></pre></bd-code>
+
+    <p>
+      The method is looked for on the field's type and on a pointer to it, so
+      the usual pointer receiver works on a value field. Standard library types
+      that already implement it — <code>time.Time</code>,
+      <code>net.IP</code>, <code>netip.Addr</code>, <code>uuid.UUID</code> —
+      bind with no code of your own:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type Query struct {
+	Since  time.Time `query:"since"`  // RFC 3339
+	Client net.IP    `header:"X-Real-IP"`
+	Trace  uuid.UUID `header:"X-Trace-Id"`
+}</code></pre></bd-code>
+
+    <p>
+      An error returned from <code>UnmarshalText</code> is wrapped in a
+      <code>BindError</code> and reachable with <code>errors.Is</code> and
+      <code>errors.As</code>, so a custom sentinel survives the trip out to the
+      handler.
+    </p>
+
+    <div class="docs-note">
+      A <code>TextUnmarshaler</code> only receives text. In a JSON body it is
+      used when the value is a string; a JSON object or array bound to such a
+      field is an error rather than a re-encoded string.
+    </div>
+
+    <nav class="docs-pager" aria-label="Pagination">
+      <a class="prev" href="/docs/sources.html">Binding sources</a>
+      <a class="next" href="/docs/options.html">Options</a>
+    </nav>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div>
+      <span class="footer-brand">
+        <img src="/assets/binder.svg" alt="" width="39" height="26" decoding="async">
+        <span class="footer-mark">binder</span>
+      </span>
+      <p class="footer-note">MIT licensed. Written in Go, with no dependencies.</p>
+      <a class="by-uradical" href="https://uradical.io" rel="noopener">
+        <span>An open-source library from</span>
+        <img src="/assets/uradical-logo.webp" alt="uRadical" width="132" height="26" decoding="async">
+      </a>
+    </div>
+    <nav aria-label="Footer">
+      <ul class="footer-links">
+        <li><a href="https://github.com/uRadical/binder" rel="noopener">GitHub</a></li>
+        <li><a href="https://pkg.go.dev/uradical.io/go/binder" rel="noopener">pkg.go.dev</a></li>
+        <li><a href="https://github.com/uRadical/binder/releases" rel="noopener">Releases</a></li>
+        <li><a href="https://github.com/uRadical/binder/issues" rel="noopener">Issues</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

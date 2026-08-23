@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>binder — HTTP request binding for Go</title>
+<meta name="description" content="A zero-dependency Go library that binds HTTP request data — path parameters, query strings, JSON, form and multipart bodies, cookies and headers — onto a struct with struct tags. Binding only: no validator, no router, no magic.">
+<link rel="canonical" href="https://binder.dev/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#FBFBFD" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#080E2B" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="binder">
+<meta property="og:url" content="https://binder.dev/">
+<meta property="og:title" content="binder — HTTP request binding for Go">
+<meta property="og:description" content="Path, query, body, multipart, cookies and headers onto one struct, in one call. Zero dependencies, one file, sub-microsecond.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="binder — HTTP request binding for Go">
+<meta name="twitter:description" content="Path, query, body, multipart, cookies and headers onto one struct, in one call. Zero dependencies, one file, sub-microsecond.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sen:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/site.css">
+<script src="/assets/js/components.js" type="module"></script>
+<script>
+  // Applied before first paint so a stored theme choice never flashes.
+  try {
+    var t = localStorage.getItem('bd-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "name": "binder",
+  "description": "A zero-dependency Go library that binds HTTP request data onto a struct using struct tags: path parameters, query strings, JSON, form and multipart bodies, cookies and headers.",
+  "url": "https://binder.dev/",
+  "codeRepository": "https://github.com/uRadical/binder",
+  "programmingLanguage": "Go",
+  "runtimePlatform": "Go 1.27",
+  "license": "https://opensource.org/licenses/MIT",
+  "version": "1.1.0",
+  "author": {
+    "@type": "Organization",
+    "name": "uRadical",
+    "url": "https://uradical.io"
+  },
+  "sameAs": [
+    "https://github.com/uRadical/binder",
+    "https://pkg.go.dev/uradical.io/go/binder"
+  ]
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="wordmark" href="/">
+      <img class="mark" src="/assets/binder.svg" alt="" width="36" height="24" decoding="async">
+      <span>binder</span>
+    </a>
+    <nav aria-label="Primary">
+      <ul class="nav">
+        <li><a href="#why">Why</a></li>
+        <li><a href="#sources">Sources</a></li>
+        <li><a href="#careful">Careful</a></li>
+        <li><a href="/docs/">Docs</a></li>
+        <li><a href="#install">Install</a></li>
+      </ul>
+    </nav>
+    <div class="header-actions">
+      <a class="icon-link" href="https://github.com/uRadical/binder" rel="noopener"
+         aria-label="binder on GitHub" title="GitHub">
+        <svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+        </svg>
+      </a>
+      <bd-theme-toggle></bd-theme-toggle>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ---------------------------------------------------------------- hero -->
+  <section class="hero">
+    <div class="wrap hero-inner">
+      <img class="hero-logo" src="/assets/binder.svg" alt=""
+           width="200" height="132" decoding="async" fetchpriority="high">
+
+      <p class="eyebrow">An open-source library from uRadical · v1.1.0</p>
+      <p class="eyebrow eyebrow-sub">Go 1.27 · MIT · zero dependencies</p>
+
+      <h1>HTTP requests,<br>bound to your structs.</h1>
+
+      <p class="lede">
+        Path parameters, query strings, JSON, form and multipart bodies,
+        cookies and headers — onto one struct, in one call. binder does that
+        and nothing else, in one file with nothing in its <em>go.mod</em> but
+        Go itself.
+      </p>
+
+      <p class="hero-links">
+        <a class="btn btn-primary" href="/docs/install.html">Get started</a>
+        <a class="btn" href="https://github.com/uRadical/binder" rel="noopener">Source on GitHub</a>
+      </p>
+
+      <bd-code class="hero-install"><pre><code>go get uradical.io/go/binder</code></pre></bd-code>
+
+      <div class="hero-demo">
+        <div class="slab-pair">
+          <div class="slab">
+            <div class="slab-bar"><span></span><span></span><span></span><b>before</b></div>
+<pre class="slab-body"><code><span class="tok-com">// ...in every handler, again</span>
+id := r.<span class="tok-typ">PathValue</span>(<span class="tok-str">"id"</span>)
+n, err := strconv.<span class="tok-typ">Atoi</span>(id)
+<span class="tok-kw">if</span> err != <span class="tok-typ">nil</span> { <span class="dim">/* 400 */</span> }
+
+name := r.URL.<span class="tok-typ">Query</span>().<span class="tok-typ">Get</span>(<span class="tok-str">"name"</span>)
+
+<span class="tok-kw">var</span> body <span class="tok-typ">RequestBody</span>
+<span class="tok-kw">if</span> err := json.<span class="tok-typ">NewDecoder</span>(r.Body).
+    <span class="tok-typ">Decode</span>(&amp;body); err != <span class="tok-typ">nil</span> {
+    <span class="dim">/* 400 */</span>
+}
+
+trace := r.Header.<span class="tok-typ">Get</span>(<span class="tok-str">"X-Request-ID"</span>)
+<span class="dim">// ...and a body someone forgot to cap</span></code></pre>
+          </div>
+
+          <div class="slab">
+            <div class="slab-bar"><span></span><span></span><span></span><b>after</b></div>
+<pre class="slab-body"><code><span class="tok-kw">type</span> <span class="tok-typ">Req</span> <span class="tok-kw">struct</span> {
+    ID    <span class="tok-typ">int</span>         <span class="tok-tag">`path:"id"`</span>
+    Name  <span class="tok-typ">string</span>      <span class="tok-tag">`query:"name"`</span>
+    Body  <span class="tok-typ">RequestBody</span> <span class="tok-tag">`body:"data"`</span>
+    Trace <span class="tok-typ">string</span>      <span class="tok-tag">`header:"X-Request-ID"`</span>
+}
+
+<span class="tok-kw">var</span> req <span class="tok-typ">Req</span>
+<span class="tok-kw">if</span> err := binder.<span class="tok-typ">Bind</span>(r, &amp;req); err != <span class="tok-typ">nil</span> {
+    http.<span class="tok-typ">Error</span>(w, err.<span class="tok-typ">Error</span>(),
+        http.<span class="tok-typ">StatusBadRequest</span>)
+    <span class="tok-kw">return</span>
+}
+
+<span class="ok">// every field filled, body capped,</span>
+<span class="ok">// one error path</span></code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ----------------------------------------------------------------- why -->
+  <section id="why" class="band">
+    <div class="wrap">
+      <h2 class="section-title">Do one thing, do it well</h2>
+      <p class="section-lede">
+        binder only binds. It does not validate, log, route or transform. That
+        refusal is what keeps it small enough to read in one sitting and cheap
+        enough to leave in the hot path.
+      </p>
+
+      <div class="cards">
+
+        <article class="card">
+          <h3><span class="card-icon" aria-hidden="true">⊘</span> Zero dependencies</h3>
+          <p>
+            Nothing in <code>go.mod</code> but Go itself. Nothing to audit,
+            nothing to upgrade in a hurry, no transitive surprise arriving
+            through a package you chose for something else.
+          </p>
+        </article>
+
+        <article class="card">
+          <h3><span class="card-icon" aria-hidden="true">◇</span> Small enough to read</h3>
+          <p>
+            One file, about 730 lines of code. When binding does something you
+            did not expect, the answer is a short read away rather than three
+            layers into a framework.
+          </p>
+        </article>
+
+        <article class="card">
+          <h3><span class="card-icon" aria-hidden="true">⚡</span> Sub-microsecond</h3>
+          <p>
+            105 ns to bind a path parameter, 1.3 µs for a full mixed request.
+            Tags are reflected over once per type, not once per request, and the
+            query string is parsed only if a field asks for it. That is level
+            with the framework binders, and about 1.8&times; the cost of writing
+            the extraction out by hand.
+          </p>
+          <p class="card-note">
+            <a href="/docs/performance.html">See the full benchmarks →</a>
+            &nbsp;·&nbsp;
+            <a href="/docs/comparison.html">Compared with Echo and Gin →</a>
+          </p>
+        </article>
+
+        <article class="card">
+          <h3><span class="card-icon" aria-hidden="true">=</span> No magic</h3>
+          <p>
+            A field's tag says where its value comes from, and that is the whole
+            model. No conventions inferred from names, no ambient configuration,
+            no behaviour that changes with what else is imported.
+          </p>
+        </article>
+
+        <article class="card">
+          <h3><span class="card-icon" aria-hidden="true">⚙</span> Composable</h3>
+          <p>
+            Works with your validator, your logger, your router, your framework.
+            Implement <code>Validate() error</code> and your own checks run as
+            part of the same call.
+          </p>
+          <p class="card-note">
+            <a href="/docs/validation.html">Validation →</a>
+          </p>
+        </article>
+
+        <article class="card">
+          <h3><span class="card-icon" aria-hidden="true">↩</span> Middleware-friendly</h3>
+          <p>
+            The request body is restored after reading, so binding does not
+            consume it. Middleware further down the chain still sees what the
+            client sent.
+          </p>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------- sources -->
+  <section id="sources" class="band band-alt">
+    <div class="wrap">
+      <h2 class="section-title">Six sources, one struct</h2>
+      <p class="section-lede">
+        Each field names where its value comes from. When a field carries more
+        than one tag the first in this order wins, so precedence is something
+        you can read off the page rather than discover in production.
+      </p>
+
+      <div class="grid">
+        <div class="tile">
+          <h3><code>path</code></h3>
+          <p>Path parameters, read through <code>net/http</code>'s own <code>PathValue</code>. binder does not route; it reads what your mux already resolved.</p>
+          <code class="tile-cmd">ID int `path:"id"`</code>
+        </div>
+        <div class="tile">
+          <h3><code>query</code></h3>
+          <p>The URL query string, parsed once per call and only when a field asks for it. Repeated parameters fill a slice.</p>
+          <code class="tile-cmd">Tags []string `query:"tag"`</code>
+        </div>
+        <div class="tile">
+          <h3><code>body</code></h3>
+          <p>JSON or form-encoded, chosen by <code>Content-Type</code> — including the <code>+json</code> suffix types. One struct serves an API call and an HTML form post.</p>
+          <code class="tile-cmd">Email string `body:"email"`</code>
+        </div>
+        <div class="tile">
+          <h3><code>json</code></h3>
+          <p>The body again, for types already tagged for <code>encoding/json</code>. Prefer <code>body</code> for anything that needs binder's options.</p>
+          <code class="tile-cmd">Email string `json:"email"`</code>
+        </div>
+        <div class="tile">
+          <h3><code>cookie</code></h3>
+          <p>Request cookies by name. A cookie that was not sent leaves the field at its zero value, unless it is tagged <code>required</code>.</p>
+          <code class="tile-cmd">Token string `cookie:"session"`</code>
+        </div>
+        <div class="tile">
+          <h3><code>header</code></h3>
+          <p>Request headers, matched case-insensitively, so the tag can spell one however it reads best. Repeated headers fill a slice.</p>
+          <code class="tile-cmd">Auth string `header:"Authorization"`</code>
+        </div>
+      </div>
+
+      <div class="split" style="margin-top:56px">
+        <div>
+          <h3 class="sub" style="margin-top:0">Types, not strings</h3>
+          <p>
+            A query string has no types; the field decides what its value means.
+            Numbers, booleans and floats parse, slices fill, pointers tell
+            “absent” from “sent as zero”, nested structs bind from nested JSON,
+            and anything implementing <code>encoding.TextUnmarshaler</code> —
+            including <code>time.Time</code>, <code>net.IP</code> and
+            <code>uuid.UUID</code> — decides for itself.
+          </p>
+          <p>
+            A value that will not convert is an error naming the field, the
+            source and the key, not a zero quietly left in place.
+          </p>
+          <p><a href="/docs/types.html">Types &amp; conversion →</a></p>
+        </div>
+        <div>
+          <bd-code data-lang="go"><pre><code>type Search struct {
+	Q      string    `query:"q,required"`
+	Page   int       `query:"page,omitempty"`
+	Tags   []string  `query:"tag"`
+	Since  time.Time `query:"since"`
+	Cursor *string   `query:"cursor"`
+}
+
+var req = Search{Page: 1} // omitempty keeps the default
+err := binder.Bind(r, &req)</code></pre></bd-code>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------- careful -->
+  <section id="careful" class="band">
+    <div class="wrap">
+      <h2 class="section-title">Careful with what the client sends</h2>
+      <p class="section-lede">
+        Binding is where untrusted input first meets your types, so the failure
+        modes matter more than the feature list. Each of these exists because
+        the quiet version of it costs someone an afternoon.
+      </p>
+
+      <div class="cards">
+        <article class="card">
+          <h3><span class="card-icon" aria-hidden="true">◱</span> Bounded reads</h3>
+          <p>
+            Bodies are capped at 10 MB by default, enforced while reading rather
+            than trusted from <code>Content-Length</code>. An oversized body is
+            rejected whole — never truncated, so a handler never sees half a
+            request.
+          </p>
+        </article>
+        <article class="card">
+          <h3><span class="card-icon" aria-hidden="true">!</span> Nothing is swallowed</h3>
+          <p>
+            A body that declares JSON and is not JSON is
+            <code>ErrMalformedBody</code>, not a struct full of zero values and
+            a cheerful 200.
+          </p>
+        </article>
+        <article class="card">
+          <h3><span class="card-icon" aria-hidden="true">✓</span> No panics</h3>
+          <p>
+            An unusable target or an unsettable field is reported as an error.
+            Nothing binder does turns a strange request into a stack trace in
+            your request path.
+          </p>
+        </article>
+        <article class="card">
+          <h3><span class="card-icon" aria-hidden="true">⚖</span> Their fault or yours</h3>
+          <p>
+            <code>ErrInvalidTarget</code> means the handler passed something
+            unbindable and deserves a 500; every other failure is the client's
+            and deserves a 400. The distinction is in the error, not in the
+            message text.
+          </p>
+          <p class="card-note"><a href="/docs/errors.html">Error handling →</a></p>
+        </article>
+      </div>
+
+      <div class="split" style="margin-top:56px">
+        <div>
+          <h3 class="sub" style="margin-top:0">Errors that name the field</h3>
+          <p>
+            Anything that concerns one field arrives as a
+            <code>*BindError</code> carrying the Go field name, the source it
+            was read from and the key looked up there — enough to write a useful
+            400 without guessing which of eleven fields the client got wrong.
+          </p>
+          <p>
+            Everything else carries a sentinel to match with
+            <code>errors.Is</code>. Message text is deliberately not part of the
+            API.
+          </p>
+        </div>
+        <div>
+          <bd-code data-lang="go"><pre><code>var bindErr *binder.BindError
+if errors.As(err, &bindErr) {
+	log.Printf("field %s from %s %q: %v",
+		bindErr.Field, bindErr.Source,
+		bindErr.Name, bindErr)
+}
+
+switch {
+case errors.Is(err, binder.ErrInvalidTarget):
+	// our bug: 500
+case errors.Is(err, binder.ErrBodyTooLarge):
+	// 413
+case err != nil:
+	// 400
+}</code></pre></bd-code>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- -------------------------------------------------------- comparison -->
+  <section id="speed" class="band">
+    <div class="wrap">
+      <h2 class="section-title">How fast, next to what?</h2>
+      <p class="section-lede">
+        The same request bound into the same shape of struct, by each library
+        in turn. Nanoseconds per bind, lower is better, shared scale across the
+        three panels.
+      </p>
+
+      <figure class="bench-figure bench-figure-wide">
+        <svg class="bench-panel" viewBox="0 0 328 164" role="img" aria-label="Query string, 5 fields: hand-written stdlib 363 nanoseconds; binder 661 nanoseconds; Echo 871 nanoseconds; Gin 1104 nanoseconds; gorilla/schema 1944 nanoseconds">
+          <text class="panel-title" x="0" y="12">Query string, 5 fields</text>
+          <g><title>hand-written stdlib: 363 ns</title>
+            <text class="bar-label" x="124" y="38">hand-written stdlib</text>
+            <path class="bar" d="M132,26 H156.00925925925927 a4.0,4.0 0 0 1 4.0,4.0 V38.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+            <text class="bar-value" x="167.00925925925927" y="38">363</text>
+          </g>
+          <g><title>binder: 661 ns</title>
+            <text class="bar-label" x="124" y="66">binder</text>
+            <path class="bar bar-self" d="M132,54 H179.0030864197531 a4.0,4.0 0 0 1 4.0,4.0 V66.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+            <text class="bar-value" x="190.0030864197531" y="66">661</text>
+          </g>
+          <g><title>Echo: 871 ns</title>
+            <text class="bar-label" x="124" y="94">Echo</text>
+            <path class="bar" d="M132,82 H195.20679012345678 a4.0,4.0 0 0 1 4.0,4.0 V94.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+            <text class="bar-value" x="206.20679012345678" y="94">871</text>
+          </g>
+          <g><title>Gin: 1104 ns</title>
+            <text class="bar-label" x="124" y="122">Gin</text>
+            <path class="bar" d="M132,110 H213.18518518518516 a4.0,4.0 0 0 1 4.0,4.0 V122.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+            <text class="bar-value" x="224.18518518518516" y="122">1,104</text>
+          </g>
+          <g><title>gorilla/schema: 1944 ns</title>
+            <text class="bar-label" x="124" y="150">gorilla/schema</text>
+            <path class="bar" d="M132,138 H278.0 a4.0,4.0 0 0 1 4.0,4.0 V150.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+            <text class="bar-value" x="289.0" y="150">1,944</text>
+          </g>
+          <line class="axis" x1="132" y1="20" x2="132" y2="156"/>
+        </svg>
+        <svg class="bench-panel" viewBox="0 0 328 136" role="img" aria-label="JSON body, 5 fields: hand-written stdlib 741 nanoseconds; binder 799 nanoseconds; Echo 816 nanoseconds; Gin 856 nanoseconds">
+          <text class="panel-title" x="0" y="12">JSON body, 5 fields</text>
+          <g><title>hand-written stdlib: 741 ns</title>
+            <text class="bar-label" x="124" y="38">hand-written stdlib</text>
+            <path class="bar" d="M132,26 H185.17592592592592 a4.0,4.0 0 0 1 4.0,4.0 V38.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+            <text class="bar-value" x="196.17592592592592" y="38">741</text>
+          </g>
+          <g><title>binder: 799 ns</title>
+            <text class="bar-label" x="124" y="66">binder</text>
+            <path class="bar bar-self" d="M132,54 H189.65123456790124 a4.0,4.0 0 0 1 4.0,4.0 V66.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+            <text class="bar-value" x="200.65123456790124" y="66">799</text>
+          </g>
+          <g><title>Echo: 816 ns</title>
+            <text class="bar-label" x="124" y="94">Echo</text>
+            <path class="bar" d="M132,82 H190.96296296296296 a4.0,4.0 0 0 1 4.0,4.0 V94.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+            <text class="bar-value" x="201.96296296296296" y="94">816</text>
+          </g>
+          <g><title>Gin: 856 ns</title>
+            <text class="bar-label" x="124" y="122">Gin</text>
+            <path class="bar" d="M132,110 H194.04938271604937 a4.0,4.0 0 0 1 4.0,4.0 V122.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+            <text class="bar-value" x="205.04938271604937" y="122">856</text>
+          </g>
+          <line class="axis" x1="132" y1="20" x2="132" y2="128"/>
+        </svg>
+        <svg class="bench-panel" viewBox="0 0 328 108" role="img" aria-label="Every source at once: binder 1131 nanoseconds; Echo 1327 nanoseconds; Gin 1464 nanoseconds">
+          <text class="panel-title" x="0" y="12">Every source at once</text>
+          <g><title>binder: 1131 ns</title>
+            <text class="bar-label" x="124" y="38">binder</text>
+            <path class="bar bar-self" d="M132,26 H215.26851851851853 a4.0,4.0 0 0 1 4.0,4.0 V38.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+            <text class="bar-value" x="226.26851851851853" y="38">1,131</text>
+          </g>
+          <g><title>Echo: 1327 ns</title>
+            <text class="bar-label" x="124" y="66">Echo</text>
+            <path class="bar" d="M132,54 H230.39197530864197 a4.0,4.0 0 0 1 4.0,4.0 V66.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+            <text class="bar-value" x="241.39197530864197" y="66">1,327</text>
+          </g>
+          <g><title>Gin: 1464 ns</title>
+            <text class="bar-label" x="124" y="94">Gin</text>
+            <path class="bar" d="M132,82 H240.96296296296296 a4.0,4.0 0 0 1 4.0,4.0 V94.0 a4.0,4.0 0 0 1 -4.0,4.0 H132 Z"/>
+            <text class="bar-value" x="251.96296296296296" y="94">1,464</text>
+          </g>
+          <line class="axis" x1="132" y1="20" x2="132" y2="100"/>
+        </svg>
+        <figcaption>
+          binder leads on the query string and on filling a struct from every
+          source, and is level with Echo on a JSON body — where it also
+          allocates more than the framework binders. Method, library versions
+          and the allocation figures are on the
+          <a href="/docs/comparison.html">comparison page</a>.
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------ install -->
+  <section id="install" class="band band-alt">
+    <div class="wrap">
+      <h2 class="section-title">Install</h2>
+      <p class="section-lede">
+        Requires Go 1.27 or newer, for native path values and the standard
+        library <code>uuid</code> package.
+      </p>
+
+      <bd-code><pre><code>go get uradical.io/go/binder</code></pre></bd-code>
+
+      <h3 class="sub">Then, three steps</h3>
+      <ol class="steps">
+        <li>
+          <strong>Describe the request as a struct.</strong> One field per value
+          you need, each tagged with where it comes from.
+          <bd-code data-lang="go"><pre><code>type CreateComment struct {
+	PostID int    `path:"id"`
+	Author string `body:"author,required"`
+	Text   string `body:"text,required"`
+}</code></pre></bd-code>
+        </li>
+        <li>
+          <strong>Bind it.</strong> One call reads every source and converts
+          every value.
+          <bd-code data-lang="go"><pre><code>var req CreateComment
+if err := binder.Bind(r, &req); err != nil {
+	http.Error(w, err.Error(), http.StatusBadRequest)
+	return
+}</code></pre></bd-code>
+        </li>
+        <li>
+          <strong>Handle the failures you care about.</strong> Match the
+          sentinels rather than the message, and give
+          <code>ErrInvalidTarget</code> a 500 — it is your bug, not theirs.
+        </li>
+      </ol>
+
+      <p class="docs-cta">
+        The <a href="/docs/">documentation</a> covers all six sources, type
+        conversion, options, errors, validation and the compatibility contract —
+        or start with the <a href="/docs/install.html">quick start</a>.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div>
+      <span class="footer-brand">
+        <img src="/assets/binder.svg" alt="" width="39" height="26" decoding="async">
+        <span class="footer-mark">binder</span>
+      </span>
+      <p class="footer-note">MIT licensed. Written in Go, with no dependencies.</p>
+      <a class="by-uradical" href="https://uradical.io" rel="noopener">
+        <span>An open-source library from</span>
+        <img src="/assets/uradical-logo.webp" alt="uRadical" width="132" height="26" decoding="async">
+      </a>
+    </div>
+    <nav aria-label="Footer">
+      <ul class="footer-links">
+        <li><a href="/docs/">Docs</a></li>
+        <li><a href="https://github.com/uRadical/binder" rel="noopener">GitHub</a></li>
+        <li><a href="https://pkg.go.dev/uradical.io/go/binder" rel="noopener">pkg.go.dev</a></li>
+        <li><a href="https://github.com/uRadical/binder/releases" rel="noopener">Releases</a></li>
+        <li><a href="https://github.com/uRadical/binder/issues" rel="noopener">Issues</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,80 @@
+title: Documentation
+desc: Documentation for binder 1.1.0, a zero-dependency Go library that binds HTTP request data — path, query, body, multipart forms, cookies and headers — onto a struct using struct tags.
+---
+    <h1>Documentation</h1>
+    <p class="docs-lede">
+      binder maps the parts of an <code>*http.Request</code> onto the fields of a
+      struct, using struct tags to say where each field comes from. That is the
+      whole library. It does not validate, route, log or transform — those belong
+      to packages that already do them well.
+    </p>
+
+    <p>
+      These pages document <strong>v1.1.0</strong>. The module path is
+      <code>uradical.io/go/binder</code> and it requires Go 1.27.
+    </p>
+
+    <h2 id="shape">The shape of it</h2>
+    <p>
+      One call, one struct. Each field names a source and a key; binder reads
+      the request once, converts each value to the field's type, and reports the
+      first field that could not be filled.
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type UpdateUser struct {
+	ID      int      `path:"id"`
+	Fields  []string `query:"fields"`
+	Name    string   `body:"name,required"`
+	Email   string   `body:"email,omitempty"`
+	Token   string   `cookie:"session"`
+	TraceID string   `header:"X-Request-ID"`
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	var req UpdateUser
+	if err := binder.Bind(r, &amp;req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	// req is populated; every field came from where its tag says.
+}</code></pre></bd-code>
+
+    <h2 id="start">Start here</h2>
+    <div class="doc-cards">
+      <a class="doc-card" href="/docs/install.html">
+        <em>1</em><strong>Install &amp; quick start</strong>
+        <span>Add the module and bind your first handler, in about five minutes.</span>
+      </a>
+      <a class="doc-card" href="/docs/sources.html">
+        <em>2</em><strong>Binding sources</strong>
+        <span>The six tags, what each reads, and which one wins when a field carries several.</span>
+      </a>
+      <a class="doc-card" href="/docs/types.html">
+        <em>3</em><strong>Types &amp; conversion</strong>
+        <span>Which Go types bind, how slices fill, and how to bind a type of your own.</span>
+      </a>
+      <a class="doc-card" href="/docs/errors.html">
+        <em>4</em><strong>Error handling</strong>
+        <span>Telling a bad request from a bad handler, and the status code for each.</span>
+      </a>
+    </div>
+
+    <h2 id="not">What binder does not do</h2>
+    <p>
+      Knowing the edges early saves an afternoon of looking for a feature that
+      was never there:
+    </p>
+    <ul>
+      <li><strong>No streamed uploads.</strong> A <code>multipart/form-data</code> body <a href="/docs/sources.html#multipart">binds its file parts</a>, but the whole request is held in memory under <code>MaxBodySize</code> rather than spilled to disk.</li>
+      <li><strong>No validation rules.</strong> There is a <a href="/docs/validation.html"><code>Validator</code> hook</a> so your own checks run as part of binding, but no <code>min</code>, <code>max</code> or <code>email</code> tags.</li>
+      <li><strong>No fixed-size arrays.</strong> <code>[]int</code> binds; <code>[5]int</code> does not. REST payloads are variable-length.</li>
+      <li><strong>No defaults.</strong> A missing optional value leaves the field at its zero value; set defaults before you bind.</li>
+      <li><strong>No routing.</strong> <code>path:</code> reads what <code>net/http</code>'s own <code>PathValue</code> already resolved.</li>
+    </ul>
+
+    <div class="docs-note">
+      The <a href="https://github.com/uRadical/binder" rel="noopener">README in the repository</a>
+      is the canonical documentation and these pages track it. Where they
+      disagree, the source wins — and please
+      <a href="https://github.com/uRadical/binder/issues" rel="noopener">open an issue</a>.
+    </div>

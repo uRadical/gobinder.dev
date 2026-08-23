@@ -1,0 +1,45 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; queued rather than cancelled so a push never lands a
+# half-published site.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # docs/ is generated from tools/pages. Rebuilding here and failing on a
+      # diff keeps a hand-edited page from being published and then silently
+      # overwritten by the next real build.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Rebuild docs and check they are committed
+        run: |
+          python3 tools/build.py
+          git diff --exit-code -- docs sitemap.xml llms.txt
+
+      - uses: actions/configure-pages@v5
+      # The repository root is the site — there is no bundler to run.
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4

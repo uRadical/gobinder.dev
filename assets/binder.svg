@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 132" role="img" aria-label="binder">
+  <title>binder</title>
+  <defs>
+    <linearGradient id="bd-g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#5DB1FF"/>
+      <stop offset="35%"  stop-color="#9F72E1"/>
+      <stop offset="70%"  stop-color="#F659A8"/>
+      <stop offset="100%" stop-color="#E1C631"/>
+    </linearGradient>
+    <linearGradient id="bd-g2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#5DB1FF"/>
+      <stop offset="100%" stop-color="#9F72E1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- three request sources on the left: path, query, body -->
+  <g fill="url(#bd-g2)">
+    <rect x="4"  y="22" width="46" height="10" rx="5"/>
+    <rect x="4"  y="61" width="62" height="10" rx="5"/>
+    <rect x="4"  y="100" width="38" height="10" rx="5"/>
+  </g>
+
+  <!-- they converge on one field each -->
+  <g fill="none" stroke="url(#bd-g)" stroke-width="7" stroke-linecap="round">
+    <path d="M56 27 C 84 27, 84 46, 108 46"/>
+    <path d="M72 66 C 90 66, 90 66, 108 66"/>
+    <path d="M48 105 C 84 105, 84 86, 108 86"/>
+  </g>
+
+  <!-- the struct they bind into -->
+  <g fill="none" stroke="url(#bd-g)" stroke-width="8" stroke-linejoin="round">
+    <path d="M130 12 h 54 a 8 8 0 0 1 8 8 v 92 a 8 8 0 0 1 -8 8 h -54"/>
+  </g>
+  <g fill="url(#bd-g)">
+    <rect x="112" y="41" width="34" height="10" rx="5"/>
+    <rect x="112" y="61" width="34" height="10" rx="5"/>
+    <rect x="112" y="81" width="34" height="10" rx="5"/>
+  </g>
+</svg>

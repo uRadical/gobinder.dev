@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Error handling — binder</title>
+<meta name="description" content="How binder reports failures — the BindError type naming field, source and key, the five sentinel errors, and which HTTP status each one deserves.">
+<link rel="canonical" href="https://binder.dev/docs/errors.html">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#FBFBFD" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#080E2B" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="binder">
+<meta property="og:url" content="https://binder.dev/docs/errors.html">
+<meta property="og:title" content="Error handling — binder">
+<meta property="og:description" content="How binder reports failures — the BindError type naming field, source and key, the five sentinel errors, and which HTTP status each one deserves.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Error handling — binder">
+<meta name="twitter:description" content="How binder reports failures — the BindError type naming field, source and key, the five sentinel errors, and which HTTP status each one deserves.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sen:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/site.css">
+<link rel="stylesheet" href="/assets/css/docs.css">
+<script src="/assets/js/components.js" type="module"></script>
+<script>
+  // Applied before first paint so a stored theme choice never flashes.
+  try {
+    var t = localStorage.getItem('bd-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="wordmark" href="/">
+      <img class="mark" src="/assets/binder.svg" alt="" width="36" height="24" decoding="async">
+      <span>binder</span>
+    </a>
+    <nav aria-label="Primary">
+      <ul class="nav">
+        <li><a href="/#why">Why</a></li>
+        <li><a href="/#sources">Sources</a></li>
+        <li><a href="/docs/" aria-current="page">Docs</a></li>
+        <li><a href="/#install">Install</a></li>
+      </ul>
+    </nav>
+    <div class="header-actions">
+      <a class="icon-link" href="https://github.com/uRadical/binder" rel="noopener"
+         aria-label="binder on GitHub" title="GitHub"><svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+      <bd-theme-toggle></bd-theme-toggle>
+    </div>
+  </div>
+</header>
+
+<div class="wrap docs-layout">
+  <nav class="docs-nav" aria-label="Documentation">
+      <p class="docs-version">Documents <strong>v1.1.0</strong></p>
+      <p class="docs-nav-title">Getting started</p>
+      <ul>
+        <li><a href="/docs/">Overview</a></li>
+        <li><a href="/docs/install.html">Install &amp; quick start</a></li>
+        <li><a href="/docs/sources.html">Binding sources</a></li>
+      </ul>
+      <p class="docs-nav-title">Reference</p>
+      <ul>
+        <li><a href="/docs/types.html">Types &amp; conversion</a></li>
+        <li><a href="/docs/options.html">Options</a></li>
+        <li><a href="/docs/errors.html" class="on">Error handling</a></li>
+        <li><a href="/docs/validation.html">Validation</a></li>
+        <li><a href="/docs/api.html">API reference</a></li>
+      </ul>
+      <p class="docs-nav-title">Project</p>
+      <ul>
+        <li><a href="/docs/performance.html">Performance</a></li>
+        <li><a href="/docs/comparison.html">Comparison</a></li>
+        <li><a href="/docs/compatibility.html">Compatibility</a></li>
+      </ul>
+  </nav>
+
+  <main id="main" class="docs-main">
+    <p class="crumb"><a href="/">binder</a> / <a href="/docs/">Docs</a> / Error handling</p>
+    <h1>Error handling</h1>
+    <p class="docs-lede">
+      binder distinguishes a bad request from a bad handler. Failures about one
+      field arrive as a <code>*BindError</code> naming it; failures about the
+      request as a whole carry a sentinel you can match with
+      <code>errors.Is</code>. Between them a handler can answer with the right
+      status code without parsing any message text.
+    </p>
+
+    <h2 id="binderror">BindError</h2>
+    <p>
+      Anything that concerns a single field — a value that would not convert, a
+      required value that was not sent, a <code>TextUnmarshaler</code> that
+      refused — is a <code>*BindError</code>:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type BindError struct {
+	Field   string // name of the Go struct field
+	Source  string // tag source the value came from, such as "query"
+	Name    string // key looked up in that source
+	Message string // complete description of what went wrong
+	Err     error  // underlying cause, reachable with errors.Is and errors.As
+}</code></pre></bd-code>
+
+    <p>
+      Those four strings are what turns “400 Bad Request” into a message the
+      client can act on:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>if err := binder.Bind(r, &amp;req); err != nil {
+	var bindErr *binder.BindError
+	if errors.As(err, &amp;bindErr) {
+		log.Printf("field %s from %s %q: %v",
+			bindErr.Field, bindErr.Source, bindErr.Name, bindErr)
+	}
+	http.Error(w, err.Error(), http.StatusBadRequest)
+	return
+}</code></pre></bd-code>
+
+    <p>
+      <code>BindError</code> implements <code>Unwrap</code>, so the cause stays
+      reachable. A required field failing matches both
+      <code>errors.As(err, &amp;bindErr)</code> for the detail and
+      <code>errors.Is(err, binder.ErrMissingRequired)</code> for the category.
+    </p>
+
+    <h2 id="sentinels">The sentinels</h2>
+    <p>
+      Five errors describe the request as a whole. Match on these, never on
+      message text — the text is explicitly outside the compatibility contract.
+    </p>
+
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead><tr><th>Error</th><th>Meaning</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr id="malformed">
+          <td><code>ErrMalformedBody</code></td>
+          <td>The body could not be parsed as its <code>Content-Type</code> declares.</td>
+          <td>400 Bad Request</td>
+        </tr>
+        <tr>
+          <td><code>ErrMissingRequired</code></td>
+          <td>A field tagged <code>required</code> had no value. Wrapped by a <code>BindError</code>.</td>
+          <td>400 Bad Request</td>
+        </tr>
+        <tr>
+          <td><code>ErrUnknownField</code></td>
+          <td>The body carried a key nothing binds, with <code>DisallowUnknownFields</code> set.</td>
+          <td>400 Bad Request</td>
+        </tr>
+        <tr>
+          <td><code>ErrBodyTooLarge</code></td>
+          <td>The body exceeded <code>MaxBodySize</code>.</td>
+          <td>413 Content Too Large</td>
+        </tr>
+        <tr>
+          <td><code>ErrInvalidTarget</code></td>
+          <td>The target was not a non-nil pointer to a struct.</td>
+          <td>500 Internal Server Error</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h2 id="whose-fault">Whose fault is it</h2>
+    <p>
+      <code>ErrInvalidTarget</code> is the one case that should not be blamed on
+      the client. It means the handler passed something that was never bindable
+      — a value instead of a pointer, a nil pointer, a pointer to a map — and no
+      request would have made it work:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>switch {
+case errors.Is(err, binder.ErrInvalidTarget):
+	http.Error(w, "server error", http.StatusInternalServerError)
+case errors.Is(err, binder.ErrBodyTooLarge):
+	http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+case err != nil:
+	http.Error(w, err.Error(), http.StatusBadRequest)
+}</code></pre></bd-code>
+
+    <p>
+      Wrapping that switch in a small helper is usually worth it, so that every
+      handler answers the same way:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>// bind fills dst from r, writing the response itself on failure. It reports
+// whether the handler should continue.
+func bind(w http.ResponseWriter, r *http.Request, dst any) bool {
+	err := binder.Bind(r, dst)
+	switch {
+	case err == nil:
+		return true
+	case errors.Is(err, binder.ErrInvalidTarget):
+		log.Printf("bind: %v", err) // our bug, not theirs
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	case errors.Is(err, binder.ErrBodyTooLarge):
+		http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+	default:
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	return false
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	var req CreateComment
+	if !bind(w, r, &amp;req) {
+		return
+	}
+	// ...
+}</code></pre></bd-code>
+
+    <h2 id="malformed-bodies">Malformed bodies</h2>
+    <p>
+      A body that declares JSON and is not JSON is an error. In 1.0 it bound
+      nothing and reported success, which meant a client's syntax mistake
+      surfaced as an empty struct several layers away:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>if errors.Is(err, binder.ErrMalformedBody) {
+	http.Error(w, "malformed request body", http.StatusBadRequest)
+	return
+}</code></pre></bd-code>
+
+    <p>
+      A body whose <code>Content-Type</code> is neither JSON nor
+      form-encoded is not parsed at all, so it is never malformed — such a
+      request binds from its path, query, cookie and header values and leaves
+      body fields at their zero values.
+    </p>
+
+    <div class="docs-note docs-warn">
+      Built with Go 1.27, <code>errors.As(err, &amp;*json.SyntaxError{})</code>
+      no longer matches: <code>encoding/json</code> is implemented on json/v2 and
+      returns different error types. Test for <code>ErrMalformedBody</code>
+      instead — it is the reason the sentinel exists.
+    </div>
+
+    <h2 id="never-panics">What binder will not do</h2>
+    <ul>
+      <li><strong>It does not panic.</strong> An unusable target or an unsettable field is reported as an error, not a stack trace in your request path.</li>
+      <li><strong>It does not swallow.</strong> A body that fails to parse is reported rather than ignored.</li>
+      <li><strong>It does not truncate.</strong> An oversized body is rejected whole, so a handler never sees a half-parsed request.</li>
+      <li><strong>It does not consume the body.</strong> The body is restored after reading, so middleware further down the chain can read it too.</li>
+    </ul>
+
+    <nav class="docs-pager" aria-label="Pagination">
+      <a class="prev" href="/docs/options.html">Options</a>
+      <a class="next" href="/docs/validation.html">Validation</a>
+    </nav>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div>
+      <span class="footer-brand">
+        <img src="/assets/binder.svg" alt="" width="39" height="26" decoding="async">
+        <span class="footer-mark">binder</span>
+      </span>
+      <p class="footer-note">MIT licensed. Written in Go, with no dependencies.</p>
+      <a class="by-uradical" href="https://uradical.io" rel="noopener">
+        <span>An open-source library from</span>
+        <img src="/assets/uradical-logo.webp" alt="uRadical" width="132" height="26" decoding="async">
+      </a>
+    </div>
+    <nav aria-label="Footer">
+      <ul class="footer-links">
+        <li><a href="https://github.com/uRadical/binder" rel="noopener">GitHub</a></li>
+        <li><a href="https://pkg.go.dev/uradical.io/go/binder" rel="noopener">pkg.go.dev</a></li>
+        <li><a href="https://github.com/uRadical/binder/releases" rel="noopener">Releases</a></li>
+        <li><a href="https://github.com/uRadical/binder/issues" rel="noopener">Issues</a></li>
+        <li><a href="/llms.txt">llms.txt</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>
