@@ -230,7 +230,6 @@ def page(slug: str, meta: dict[str, str], body: str) -> str:
         <li><a href="https://pkg.go.dev/{MODULE}" rel="noopener">pkg.go.dev</a></li>
         <li><a href="{REPO}/releases" rel="noopener">Releases</a></li>
         <li><a href="{REPO}/issues" rel="noopener">Issues</a></li>
-        <li><a href="/llms.txt">llms.txt</a></li>
       </ul>
     </nav>
   </div>
