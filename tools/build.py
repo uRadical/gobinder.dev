@@ -22,6 +22,11 @@ PAGES = ROOT / "tools" / "pages"
 SITE = "https://gobinder.dev"
 VERSION = "1.1.0"
 
+# Appended to the <title> of every page, so a browser tab or a search result
+# carries the house name. The og:/twitter: titles stay unbranded — a share card
+# already shows the site name of its own accord.
+BRAND = "uRadical"
+
 # The sitemap's <lastmod>. Pinned rather than taken from the clock, so that
 # rebuilding an unchanged site produces an unchanged sitemap — CI rebuilds and
 # fails on a diff, and a date that moved every midnight would fail every day.
@@ -132,6 +137,7 @@ def page(slug: str, meta: dict[str, str], body: str) -> str:
     title = meta["title"]
     desc = meta["desc"]
     full_title = title if slug == "index" else f"{title} — binder"
+    head_title = f"{full_title} | {BRAND}"
 
     crumb = ""
     if slug != "index":
@@ -145,7 +151,7 @@ def page(slug: str, meta: dict[str, str], body: str) -> str:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{full_title}</title>
+<title>{head_title}</title>
 <meta name="description" content="{desc}">
 <link rel="canonical" href="{url}">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
