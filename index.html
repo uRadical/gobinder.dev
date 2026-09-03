@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>binder — HTTP request binding for Go</title>
+<title>binder — HTTP request binding for Go | uRadical</title>
 <meta name="description" content="A zero-dependency Go library that binds HTTP request data — path parameters, query strings, JSON, form and multipart bodies, cookies and headers — onto a struct with struct tags. Binding only: no validator, no router, no magic.">
-<link rel="canonical" href="https://binder.dev/">
+<link rel="canonical" href="https://gobinder.dev/">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#FBFBFD" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#080E2B" media="(prefers-color-scheme: dark)">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="binder">
-<meta property="og:url" content="https://binder.dev/">
+<meta property="og:url" content="https://gobinder.dev/">
 <meta property="og:title" content="binder — HTTP request binding for Go">
 <meta property="og:description" content="Path, query, body, multipart, cookies and headers onto one struct, in one call. Zero dependencies, one file, sub-microsecond.">
 <meta name="twitter:card" content="summary">
@@ -33,23 +33,40 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "SoftwareSourceCode",
-  "name": "binder",
-  "description": "A zero-dependency Go library that binds HTTP request data onto a struct using struct tags: path parameters, query strings, JSON, form and multipart bodies, cookies and headers.",
-  "url": "https://binder.dev/",
-  "codeRepository": "https://github.com/uRadical/binder",
-  "programmingLanguage": "Go",
-  "runtimePlatform": "Go 1.27",
-  "license": "https://opensource.org/licenses/MIT",
-  "version": "1.1.0",
-  "author": {
-    "@type": "Organization",
-    "name": "uRadical",
-    "url": "https://uradical.io"
-  },
-  "sameAs": [
-    "https://github.com/uRadical/binder",
-    "https://pkg.go.dev/uradical.io/go/binder"
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://uradical.io/#organization",
+      "name": "uRadical",
+      "url": "https://uradical.io",
+      "logo": "https://uradical.io/images/uradical_logo_black.png",
+      "sameAs": [
+        "https://github.com/uRadical",
+        "https://www.linkedin.com/company/uradiccal/"
+      ]
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "name": "binder",
+      "description": "A zero-dependency Go library that binds HTTP request data onto a struct using struct tags: path parameters, query strings, JSON, form and multipart bodies, cookies and headers.",
+      "url": "https://gobinder.dev/",
+      "codeRepository": "https://github.com/uRadical/binder",
+      "programmingLanguage": "Go",
+      "runtimePlatform": "Go 1.27",
+      "license": "https://opensource.org/licenses/MIT",
+      "version": "1.1.0",
+      "author": {
+        "@id": "https://uradical.io/#organization"
+      },
+      "sameAs": [
+        "https://github.com/uRadical/binder",
+        "https://pkg.go.dev/uradical.io/go/binder"
+      ],
+      "@id": "https://gobinder.dev/#software",
+      "publisher": {
+        "@id": "https://uradical.io/#organization"
+      }
+    }
   ]
 }
 </script>
@@ -561,6 +578,10 @@ if err := binder.Bind(r, &req); err != nil {
         <li><a href="https://github.com/uRadical/binder/issues" rel="noopener">Issues</a></li>
       </ul>
     </nav>
+  </div>
+
+  <div data-uradical-siblings style="max-width:1080px;margin:0 auto;padding:1.25rem 1rem 0;font-size:0.85rem;line-height:1.7;opacity:0.72">
+    More open-source tools from <a href="https://uradical.io" rel="noopener" style="color:inherit;text-decoration:underline;text-underline-offset:3px">uRadical</a>: <a href="https://namecheapcli.com" rel="noopener" style="color:inherit;text-decoration:underline;text-underline-offset:3px">namecheap-cli</a> · <a href="https://httpsuite.dev" rel="noopener" style="color:inherit;text-decoration:underline;text-underline-offset:3px">httpsuite</a> · <a href="https://mkunit.sh" rel="noopener" style="color:inherit;text-decoration:underline;text-underline-offset:3px">mkunit</a> · <a href="https://mklaunchd.sh" rel="noopener" style="color:inherit;text-decoration:underline;text-underline-offset:3px">mklaunchd</a>
   </div>
 </footer>
 

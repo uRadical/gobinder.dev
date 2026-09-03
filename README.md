@@ -1,4 +1,4 @@
-# binder.dev
+# gobinder.dev
 
 The project site for [binder](https://github.com/uRadical/binder), a
 zero-dependency HTTP request binding library for Go.
@@ -24,7 +24,7 @@ assets/uradical-logo.webp   uRadical wordmark — footer attribution
 assets/uradical-mark.png    uRadical brandmark (unused by the page; kept as a source)
 sitemap.xml                 GENERATED
 llms.txt                    GENERATED
-CNAME                       binder.dev
+CNAME                       gobinder.dev
 .nojekyll                   serve files as-is, no Jekyll pass
 .github/workflows/pages.yml
 ```
@@ -70,6 +70,6 @@ rebuilds `/docs` and fails on a diff, so a hand-edited page cannot be published
 and then silently overwritten by the next real build.
 
 Enable it once under **Settings → Pages → Source: GitHub Actions**, and point
-`binder.dev` at GitHub Pages with the four `A` records for `185.199.108.153`,
+`gobinder.dev` at GitHub Pages with the four `A` records for `185.199.108.153`,
 `185.199.109.153`, `185.199.110.153` and `185.199.111.153` (or a `CNAME` to
 `uradical.github.io` on a subdomain).

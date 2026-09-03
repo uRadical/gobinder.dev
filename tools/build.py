@@ -19,7 +19,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PAGES = ROOT / "tools" / "pages"
 
-SITE = "https://binder.dev"
+SITE = "https://gobinder.dev"
 VERSION = "1.1.0"
 
 # The sitemap's <lastmod>. Pinned rather than taken from the clock, so that
