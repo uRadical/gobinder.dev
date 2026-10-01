@@ -165,9 +165,16 @@ def page(slug: str, meta: dict[str, str], body: str) -> str:
 <meta property="og:url" content="{url}">
 <meta property="og:title" content="{full_title}">
 <meta property="og:description" content="{desc}">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://gobinder.dev/assets/og-card.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1774">
+<meta property="og:image:height" content="887">
+<meta property="og:image:alt" content="binder — HTTP request binding for Go">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{full_title}">
 <meta name="twitter:description" content="{desc}">
+<meta name="twitter:image" content="https://gobinder.dev/assets/og-card.png">
+<meta name="twitter:image:alt" content="binder — HTTP request binding for Go">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sen:wght@400;700;800&display=swap" rel="stylesheet">

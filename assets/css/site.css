@@ -598,6 +598,7 @@ code, kbd, pre { font-family: var(--mono); }
   align-items: start;
 }
 .split:last-child { margin-bottom: 0; }
+.split > *, .slab-pair > *, .cards > * { min-width: 0; }
 .split p { color: var(--ink-soft); font-size: 15.5px; }
 
 /* -------------------------------------------------------------- tables --- */
@@ -652,6 +653,7 @@ code, kbd, pre { font-family: var(--mono); }
 .steps li {
   counter-increment: step;
   position: relative;
+  min-width: 0; /* grid items default to min-content; let wide <pre> scroll inside */
   padding-left: 72px;
   color: var(--ink-soft);
   font-size: 15.5px;

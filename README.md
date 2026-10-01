@@ -22,6 +22,7 @@ assets/binder.svg           the project mark — hero, header, footer
 assets/favicon.svg          browser tab icon
 assets/uradical-logo.webp   uRadical wordmark — footer attribution
 assets/uradical-mark.png    uRadical brandmark (unused by the page; kept as a source)
+assets/og-card.png          social share card (og:image / twitter:image), every page
 sitemap.xml                 GENERATED
 llms.txt                    GENERATED
 CNAME                       gobinder.dev
