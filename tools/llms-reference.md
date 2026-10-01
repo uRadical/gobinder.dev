@@ -1,9 +1,3 @@
-# binder
-
-> Zero-dependency HTTP request binding for Go, v1.2.0. Maps path parameters, query strings, JSON, form and multipart bodies, cookies and headers onto a struct using struct tags, reports every field that failed at once, then runs the type's own Validate(ctx) method. No validation tags, no router, no logging.
-
-Module: `uradical.io/go/binder` · Source: https://github.com/uRadical/binder · License: MIT · Requires Go 1.27.
-
 ## Quick reference
 
 Enough to write a handler correctly. The pages under Docs give the full rules.
@@ -100,23 +94,3 @@ if err := binder.Bind(r, &req); err != nil {
 - A `validate:"..."` tag is not read by binder. Keep it only if your `Validate` method passes the struct to a validation library.
 - Don't write `json:"x,required"`. It works, but linters flag the unknown option; use `body:"x,required"`.
 - Don't act on the struct once `Bind` has returned an error. Fields that failed can hold part of a value.
-
-## Docs
-
-- [Overview](https://gobinder.dev/docs/): Documentation for binder 1.2.0, a zero-dependency Go library that binds HTTP request data — path, query, body, multipart forms, cookies and headers — onto a struct using struct tags.
-- [Install & quick start](https://gobinder.dev/docs/install.html): Add uradical.io/go/binder to a Go 1.27 module and bind your first handler — path parameter, query string and JSON body in one call.
-- [Binding sources](https://gobinder.dev/docs/sources.html): The seven binder struct tags — path, query, body, json, cookie, header and form — what each reads from the request, how repeated values fill slices, and which tag wins when a field carries more than one.
-- [Types & conversion](https://gobinder.dev/docs/types.html): Which Go types binder can fill — strings, numbers, bools, slices, maps, pointers, nested and embedded structs — how values are converted from each source, and how to bind a type of your own with UnmarshalText or UnmarshalJSON.
-- [Options](https://gobinder.dev/docs/options.html): binder's tag options — required and omitempty — and per-call configuration through BindOptions, including the body size limit and DisallowUnknownFields.
-- [Error handling](https://gobinder.dev/docs/errors.html): How binder reports failures — every failing field at once as BindErrors, each naming field, source and key, the five sentinel errors, and which HTTP status each one deserves.
-- [Validation](https://gobinder.dev/docs/validation.html): binder's Validator interface — implement Validate(ctx) error on a request type and it runs as part of binding, with the request's context — and why the library has no validation tags of its own.
-- [API reference](https://gobinder.dev/docs/api.html): Every exported identifier in uradical.io/go/binder — Bind, BindWithOptions, BindOptions, BindError, BindErrors, Validator, DefaultMaxBodySize and the five sentinel errors.
-- [Performance](https://gobinder.dev/docs/performance.html): Measured cost of a binder call — nanoseconds, bytes and allocations per bind for each source — how the benchmarks were taken, and how to reproduce them.
-- [Comparison](https://gobinder.dev/docs/comparison.html): binder measured against Echo, Gin, gorilla/schema and hand-written stdlib code — the method, the version of each library, and what each was asked to do.
-- [Compatibility](https://gobinder.dev/docs/compatibility.html): What binder promises across a major version — the exported functions, types, sentinels and struct tags — what it explicitly does not promise, and the Go version support policy.
-
-## Optional
-
-- [Source and README](https://github.com/uRadical/binder): the canonical documentation, kept in step with this site.
-- [Go package reference](https://pkg.go.dev/uradical.io/go/binder): generated from the doc comments.
-- [Changelog](https://github.com/uRadical/binder/blob/main/CHANGELOG.md): what changed in each release.

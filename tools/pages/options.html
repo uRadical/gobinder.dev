@@ -1,5 +1,5 @@
 title: Options
-desc: binder's tag options — required and omitempty — and per-call configuration through BindOptions, including MaxBodySize and DisallowUnknownFields.
+desc: binder's tag options — required and omitempty — and per-call configuration through BindOptions, including the body size limit and DisallowUnknownFields.
 ---
     <h1>Options</h1>
     <p class="docs-lede">
@@ -22,9 +22,10 @@ desc: binder's tag options — required and omitempty — and per-call configura
 
     <h3 id="required"><code>required</code></h3>
     <p>
-      Binding fails if the value is missing from its source. The error is a
-      <code>*BindError</code> naming the field, wrapping
-      <code>ErrMissingRequired</code>:
+      Binding fails if the value is missing from its source. The failure is a
+      <code>BindErrors</code> entry naming the field, wrapping
+      <code>ErrMissingRequired</code>, and <code>errors.Is</code> finds it
+      through the list:
     </p>
 
     <bd-code data-lang="go"><pre><code>if errors.Is(err, binder.ErrMissingRequired) {
@@ -38,7 +39,7 @@ desc: binder's tag options — required and omitempty — and per-call configura
     <table class="data-table">
       <thead><tr><th>Source</th><th>Missing when</th></tr></thead>
       <tbody>
-        <tr><td><code>path</code>, <code>query</code>, <code>header</code></td><td>Absent <em>or</em> empty — neither source distinguishes the two, so <code>?q=</code> is treated as no <code>q</code>.</td></tr>
+        <tr><td><code>path</code>, <code>query</code>, <code>header</code></td><td>Absent <em>or</em> empty — an empty value counts as none, so <code>?q=</code> is treated as no <code>q</code>. For a slice, every value given must be empty.</td></tr>
         <tr><td><code>body</code>, <code>json</code></td><td>The key is absent. A key present with an empty value satisfies <code>required</code>.</td></tr>
         <tr><td><code>cookie</code></td><td>No cookie of that name was sent. A cookie with an empty value satisfies <code>required</code>.</td></tr>
       </tbody>
@@ -46,39 +47,59 @@ desc: binder's tag options — required and omitempty — and per-call configura
     </div>
 
     <p>
-      Binding stops at the first missing required field. If you need every
-      problem in one response rather than the first, collect them in a
-      <a href="/docs/validation.html"><code>Validate</code> method</a> instead —
-      binder deliberately does not accumulate.
+      Every missing required field is reported, along with any other field
+      that failed, in one error. See
+      <a href="/docs/errors.html#binderrors">Error handling</a> for turning
+      that into a response.
     </p>
 
     <h3 id="omitempty"><code>omitempty</code></h3>
     <p>
       Skip binding when the value is present but empty, leaving the field at
-      whatever it already held. That is what makes defaults work: set the field
-      before binding, and an empty input will not overwrite it.
+      whatever it already held. A value that is absent never touches the field,
+      with or without the option, so defaults work by setting the field before
+      binding. <code>omitempty</code> extends that to a body value that is
+      present but empty; for a nested struct, an empty <code>{}</code> is
+      skipped whole, so the <code>required</code> fields inside it are not
+      checked:
     </p>
 
-    <bd-code data-lang="go"><pre><code>type ListOptions struct {
-	PerPage int    `query:"per_page,omitempty"`
-	Sort    string `query:"sort,omitempty"`
+    <bd-code data-lang="go"><pre><code>type UpdateProfile struct {
+	Name  string `body:"name,omitempty"`
+	Limit int    `body:"limit,omitempty"`
 }
 
-opts := ListOptions{PerPage: 25, Sort: "created"}
-if err := binder.Bind(r, &amp;opts); err != nil {
+p := UpdateProfile{Name: current.Name, Limit: current.Limit}
+if err := binder.Bind(r, &amp;p); err != nil {
 	// ...
 }
-// ?per_page= leaves PerPage at 25 rather than zeroing it.</code></pre></bd-code>
+// {"name":"","limit":0} leaves both at their current values.</code></pre></bd-code>
 
     <p>
-      Empty means the empty string, a zero number, false, or an empty slice or
-      map. <code>required</code> and <code>omitempty</code> on the same field
-      are not contradictory: the value must be present, and if it is present but
-      empty the field is left alone.
+      What counts as empty depends on the value. A JSON body value is empty
+      when it is an empty string, a zero number, false, null, or an empty array
+      or object. Every other source carries text, so there only the empty string
+      is empty: <code>?limit=0</code> binds 0. On <code>path</code>,
+      <code>query</code> and <code>header</code> the option changes nothing,
+      since an empty value there already counts as absent.
+    </p>
+    <p>
+      On a pointer field <code>omitempty</code> has no effect. The pointer
+      already tells a value that was not sent (nil) from one sent as zero, so
+      <code>{"active": false}</code> sets a <code>*bool</code> to false, as a
+      PATCH needs.
+    </p>
+    <p>
+      <code>required</code> and <code>omitempty</code> on the same field are
+      not contradictory for a body or cookie value: the key must be present, and
+      if it is present but empty the field is left alone. On <code>path</code>,
+      <code>query</code> and <code>header</code> an empty value is missing, so
+      <code>required</code> reports it.
     </p>
 
     <div class="docs-note">
-      Tag options binding at all is new in 1.1.0. Before that,
+      Tag options binding on every source but <code>query</code> is new in
+      1.1.0. Before that,
       <code>body:"email,omitempty"</code> looked for a key literally named
       <code>email,omitempty</code> and so never bound anything. Fields written
       that way will start receiving values on upgrade.
@@ -106,11 +127,11 @@ if err := binder.BindWithOptions(r, &amp;req, opts); err != nil {
       <tbody>
         <tr>
           <td><code>MaxBodySize</code></td><td><code>0</code></td>
-          <td>Overrides the package-level <code>binder.MaxBodySize</code> for this call. Zero leaves the package setting in force; a negative value removes the limit for this call alone.</td>
+          <td>The largest body, in bytes, this call reads. Zero applies <code>DefaultMaxBodySize</code> (10 MB); a negative value removes the limit.</td>
         </tr>
         <tr>
           <td><code>DisallowUnknownFields</code></td><td><code>false</code></td>
-          <td>Fails with <code>ErrUnknownField</code> when the body carries a top-level key that no field of the target binds. Keys nested inside objects are not inspected.</td>
+          <td>Reports each top-level body key that no field of the target binds, as a <code>BindErrors</code> entry wrapping <code>ErrUnknownField</code>. Keys nested inside objects are not inspected.</td>
         </tr>
       </tbody>
     </table>
@@ -125,35 +146,44 @@ if err := binder.BindWithOptions(r, &amp;req, opts); err != nil {
       has to tolerate clients sending more than it reads.
     </p>
 
+    <p>
+      Each unknown key is its own entry, after the fields that failed, with
+      <code>Name</code> set to the key and <code>Field</code> empty, since no
+      field binds it. They are reported alongside any other failures rather
+      than ending binding, and <code>errors.Is</code> still finds them:
+    </p>
+
     <bd-code data-lang="go"><pre><code>if errors.Is(err, binder.ErrUnknownField) {
-	http.Error(w, err.Error(), http.StatusBadRequest)
-	return
+	// at least one key in the body was not recognised
 }</code></pre></bd-code>
 
     <h2 id="maxbodysize">Body size limits</h2>
     <p>
-      Bodies are capped at <code>binder.MaxBodySize</code>, which defaults to
-      <code>DefaultMaxBodySize</code> — 10 MB. An oversized body is rejected
-      with <code>ErrBodyTooLarge</code> rather than truncated, so a request is
-      never bound from half a body. The limit is enforced while reading rather
-      than trusted from <code>Content-Length</code>, which the client controls
-      and may understate.
+      <code>Bind</code> caps bodies at <code>DefaultMaxBodySize</code> — 10 MB.
+      An oversized body is rejected with <code>ErrBodyTooLarge</code> rather
+      than truncated, so a request is never bound from half a body. The limit
+      is enforced while reading rather than trusted from
+      <code>Content-Length</code>, which the client controls and may
+      understate.
     </p>
 
-    <p>Set it once during initialisation to change the default everywhere:</p>
+    <p>To use a different limit, pass it per call:</p>
 
-    <bd-code data-lang="go"><pre><code>func init() {
-	binder.MaxBodySize = 2 &lt;&lt; 20 // 2 MB
-}</code></pre></bd-code>
+    <bd-code data-lang="go"><pre><code>// An upload endpoint that accepts up to 32 MB.
+err := binder.BindWithOptions(r, &amp;req, binder.BindOptions{MaxBodySize: 32 &lt;&lt; 20})</code></pre></bd-code>
 
     <p>
-      Zero or less removes the limit entirely and restores the unbounded
-      behaviour of 1.0. The variable is read on every call, so set it at startup
-      rather than while requests are in flight.
+      There is no package-level setting to change: each endpoint states its
+      own limit, and nothing one part of a program sets can change another's.
+      A <code>MaxBodySize</code> of zero applies the default, so setting only
+      <code>DisallowUnknownFields</code> never removes the cap by accident. A
+      negative value removes the limit, which is not recommended for an
+      endpoint reachable from the internet.
     </p>
 
     <div class="docs-note docs-warn">
-      The default value is not part of the compatibility contract — set it
-      explicitly if your service depends on a particular limit. See
+      The value of <code>DefaultMaxBodySize</code> is not part of the
+      compatibility contract — pass <code>MaxBodySize</code> explicitly if your
+      service depends on a particular limit. See
       <a href="/docs/compatibility.html">Compatibility</a>.
     </div>

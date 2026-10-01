@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Performance — binder | uRadical</title>
-<meta name="description" content="Measured cost of a binder call — nanoseconds and allocations per bind for each source — how the benchmarks were taken, and how to reproduce them.">
+<meta name="description" content="Measured cost of a binder call — nanoseconds, bytes and allocations per bind for each source — how the benchmarks were taken, and how to reproduce them.">
 <link rel="canonical" href="https://gobinder.dev/docs/performance.html">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <meta name="color-scheme" content="light dark">
@@ -14,10 +14,10 @@
 <meta property="og:site_name" content="binder">
 <meta property="og:url" content="https://gobinder.dev/docs/performance.html">
 <meta property="og:title" content="Performance — binder">
-<meta property="og:description" content="Measured cost of a binder call — nanoseconds and allocations per bind for each source — how the benchmarks were taken, and how to reproduce them.">
+<meta property="og:description" content="Measured cost of a binder call — nanoseconds, bytes and allocations per bind for each source — how the benchmarks were taken, and how to reproduce them.">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Performance — binder">
-<meta name="twitter:description" content="Measured cost of a binder call — nanoseconds and allocations per bind for each source — how the benchmarks were taken, and how to reproduce them.">
+<meta name="twitter:description" content="Measured cost of a binder call — nanoseconds, bytes and allocations per bind for each source — how the benchmarks were taken, and how to reproduce them.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sen:wght@400;700;800&display=swap" rel="stylesheet">
@@ -59,7 +59,7 @@
 
 <div class="wrap docs-layout">
   <nav class="docs-nav" aria-label="Documentation">
-      <p class="docs-version">Documents <strong>v1.1.0</strong></p>
+      <p class="docs-version">Documents <strong>v1.2.0</strong></p>
       <p class="docs-nav-title">Getting started</p>
       <ul>
         <li><a href="/docs/">Overview</a></li>
@@ -86,8 +86,8 @@
     <p class="crumb"><a href="/">binder</a> / <a href="/docs/">Docs</a> / Performance</p>
     <h1>Performance</h1>
     <p class="docs-lede">
-      Binding from path, query, cookie or header costs a few hundred
-      nanoseconds and a handful of allocations. Binding a body costs more,
+      Binding from path, query, cookie or header costs about a hundred
+      nanoseconds and allocates nothing of its own. Binding a body costs more,
       because the body has to be read and parsed before any field can be
       converted.
     </p>
@@ -96,9 +96,11 @@
     <p>
       Measured on an Apple M-series laptop with Go 1.27,
       <code>-benchtime=200ms -count=10</code>, reporting the median of ten runs.
-      Each benchmark times binding alone: the request is built once and its body
-      re-armed between iterations, so <code>httptest.NewRequest</code> is not
-      folded into the figures — it costs more memory than the binding itself.
+      Each benchmark times binding, not building the request: the request is
+      built once and its body re-armed between iterations, so
+      <code>httptest.NewRequest</code> is not folded into the figures — it costs
+      more memory than the binding itself. Re-arming the body is timed, and adds
+      two allocations to each body benchmark.
     </p>
 
     <bd-code><pre><code>make bench</code></pre></bd-code>
@@ -110,20 +112,21 @@
         <tr><th>Benchmark</th><th class="num">ns/op</th><th class="num">B/op</th><th class="num">allocs/op</th></tr>
       </thead>
       <tbody>
-        <tr><td><code>BindPathOnly</code></td><td class="num">105</td><td class="num">72</td><td class="num">3</td></tr>
-        <tr><td><code>BindCookieOnly</code></td><td class="num">184</td><td class="num">280</td><td class="num">5</td></tr>
-        <tr><td><code>BindNoQueryParams</code></td><td class="num">186</td><td class="num">280</td><td class="num">5</td></tr>
-        <tr><td><code>BindQueryOnly</code></td><td class="num">228</td><td class="num">496</td><td class="num">6</td></tr>
-        <tr><td><code>BindOmitEmpty</code></td><td class="num">250</td><td class="num">528</td><td class="num">6</td></tr>
-        <tr><td><code>BindBodyOnly/JSONBody</code></td><td class="num">886</td><td class="num">1,824</td><td class="num">31</td></tr>
-        <tr><td><code>BindParallel</code></td><td class="num">904</td><td class="num">2,600</td><td class="num">25</td></tr>
-        <tr><td><code>BindManyQueryParams</code></td><td class="num">918</td><td class="num">832</td><td class="num">20</td></tr>
-        <tr><td><code>BindBodyOnly/FormBody</code></td><td class="num">1,030</td><td class="num">2,600</td><td class="num">25</td></tr>
-        <tr><td><code>Bind</code></td><td class="num">1,254</td><td class="num">2,152</td><td class="num">29</td></tr>
-        <tr><td><code>BindMixed/WithJSON</code></td><td class="num">1,304</td><td class="num">2,544</td><td class="num">39</td></tr>
-        <tr><td><code>BindMixed/WithForm</code></td><td class="num">1,632</td><td class="num">3,712</td><td class="num">36</td></tr>
-        <tr><td><code>BindWithoutCache</code></td><td class="num">1,902</td><td class="num">3,464</td><td class="num">35</td></tr>
-        <tr><td><code>BindMultipart</code></td><td class="num">8,850</td><td class="num">38,069</td><td class="num">91</td></tr>
+        <tr><td><code>BindHeaderOnly</code></td><td class="num">52</td><td class="num">16</td><td class="num">1</td></tr>
+        <tr><td><code>BindPathOnly</code></td><td class="num">60</td><td class="num">8</td><td class="num">1</td></tr>
+        <tr><td><code>BindQueryOnly</code></td><td class="num">82</td><td class="num">16</td><td class="num">1</td></tr>
+        <tr><td><code>BindCookieOnly</code></td><td class="num">86</td><td class="num">16</td><td class="num">1</td></tr>
+        <tr><td><code>BindNoQueryParams</code></td><td class="num">87</td><td class="num">16</td><td class="num">1</td></tr>
+        <tr><td><code>BindOmitEmpty</code></td><td class="num">118</td><td class="num">48</td><td class="num">1</td></tr>
+        <tr><td><code>BindParallel</code></td><td class="num">227</td><td class="num">552</td><td class="num">11</td></tr>
+        <tr><td><code>BindBodyOnly/FormBody</code></td><td class="num">542</td><td class="num">552</td><td class="num">11</td></tr>
+        <tr><td><code>BindBodyOnly/JSONBody</code></td><td class="num">572</td><td class="num">316</td><td class="num">13</td></tr>
+        <tr><td><code>BindMixed/WithForm</code></td><td class="num">729</td><td class="num">616</td><td class="num">11</td></tr>
+        <tr><td><code>Bind</code></td><td class="num">747</td><td class="num">336</td><td class="num">7</td></tr>
+        <tr><td><code>BindMixed/WithJSON</code></td><td class="num">752</td><td class="num">372</td><td class="num">13</td></tr>
+        <tr><td><code>BindManyQueryParams</code></td><td class="num">942</td><td class="num">128</td><td class="num">1</td></tr>
+        <tr><td><code>BindWithoutCache</code></td><td class="num">2,384</td><td class="num">3,494</td><td class="num">20</td></tr>
+        <tr><td><code>BindMultipart</code></td><td class="num">7,876</td><td class="num">31,657</td><td class="num">78</td></tr>
       </tbody>
     </table>
     </div>
@@ -133,30 +136,42 @@
     <h3 id="cache">The tag cache</h3>
     <p>
       <code>Bind</code> against <code>BindWithoutCache</code> measures the
-      per-type tag cache: 1,254 ns and 29 allocations with it warm, against
-      1,902 ns and 35 allocations when it is cleared before every iteration.
+      per-type tag cache: 747 ns and 7 allocations with it warm, against
+      2,384 ns and 20 allocations when it is cleared before every iteration.
       Reflecting over a type's tags happens once per type, not once per request,
       which is why the first request against a handler is the expensive one and
       no other is.
     </p>
 
-    <h3 id="query-parsing">The query string is parsed lazily</h3>
+    <h3 id="query-parsing">Path, query, header and cookie allocate nothing</h3>
     <p>
-      <code>BindManyQueryParams</code> binds eight query parameters and
-      <code>BindNoQueryParams</code> binds none. The gap shows that the query
-      string is parsed once per call and only when some field asks for it — a
-      struct with no <code>query</code> tag never pays for
-      <code>url.Values</code>.
+      The one allocation in each of those benchmarks is the target itself,
+      escaping to the heap once it is passed to <code>Bind</code> as
+      <code>any</code>. Everything else is free: for up to 64 parameters or
+      cookies, the query string is never parsed into <code>url.Values</code>
+      and the Cookie header never into <code>*http.Cookie</code> values, and each field's value is found by
+      scanning for it. A value with nothing to unescape is a substring of the
+      request rather than a copy, and a string headed for an
+      <code>int</code>, <code>bool</code> or <code>float64</code> is parsed
+      straight into the field.
+    </p>
+    <p>
+      <code>BindManyQueryParams</code> binds eight query parameters in one
+      allocation. The scan takes the same steps as <code>url.ParseQuery</code>,
+      and a fuzz test holds it to that. A query of more than 64 parameters is
+      parsed once instead, so that it costs one pass rather than one per field.
     </p>
 
     <h3 id="bodies">Bodies cost more than the rest</h3>
     <p>
       A body has to be read before any field can be converted, which is why
       every body benchmark starts higher than the ones that read a header or a
-      path value. A JSON body goes straight from the parser into your fields,
-      and a member no field binds is skipped without being decoded at all; a
-      form body still goes through a map, which is why it allocates more
-      despite being simpler to parse. A handler that reads only a path
+      path value. The body is read into one buffer sized from
+      <code>Content-Length</code>, up to 64 KB before any of it arrives, and a
+      JSON body goes from there straight
+      into your fields through a pooled <code>jsontext</code> decoder; a member
+      no field binds is skipped without being decoded at all. A form body is parsed from the same
+      buffer into a map of values first, and costs about the same as JSON. A handler that reads only a path
       parameter and a header touches none of it.
     </p>
 
@@ -170,8 +185,8 @@
 
     <h2 id="context">Context</h2>
     <p>
-      Setting the upload aside, the slowest case here is under two
-      microseconds. On any endpoint that
+      Setting the upload aside, the slowest case here is about two
+      microseconds, and that only for the first request of a type. On any endpoint that
       touches a database, a cache or another service, binding is not the thing
       to optimise — these numbers exist to show that it stays out of the way,
       not to invite tuning.

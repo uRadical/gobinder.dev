@@ -1,35 +1,35 @@
 title: Validation
-desc: binder's Validator interface — implement Validate() error on a request type and it runs as part of binding — and why the library has no validation tags of its own.
+desc: binder's Validator interface — implement Validate(ctx) error on a request type and it runs as part of binding, with the request's context — and why the library has no validation tags of its own.
 ---
     <h1>Validation</h1>
     <p class="docs-lede">
-      binder binds; it does not validate. What it offers is a single hook, so
-      that your own rules run as part of the same call and a handler has one
-      error path rather than two.
+      binder turns a request into a valid struct: it binds the data, then runs
+      the validation your type defines, in the same call, so a handler has one
+      error path rather than two. What it does not ship is a rule language —
+      the rules are yours.
     </p>
 
     <h2 id="validator">The Validator interface</h2>
 
     <bd-code data-lang="go"><pre><code>type Validator interface {
-	Validate() error
+	Validate(ctx context.Context) error
 }</code></pre></bd-code>
 
     <p>
       If the target implements it, <code>Bind</code> calls
-      <code>Validate</code> after every field is bound and returns whatever it
-      returns. Nothing to register, nothing to configure:
+      <code>Validate</code> once every field has bound, and returns its error
+      wrapped with <code>%w</code>, so <code>errors.Is</code> and
+      <code>errors.As</code> still reach it. Nothing to register, nothing to
+      configure:
     </p>
 
     <bd-code data-lang="go"><pre><code>type CreateUser struct {
-	Name  string `body:"name"`
-	Email string `body:"email"`
+	Name  string `body:"name,required"`
+	Email string `body:"email,required"`
 	Age   int    `body:"age"`
 }
 
-func (r CreateUser) Validate() error {
-	if r.Name == "" {
-		return errors.New("name is required")
-	}
+func (r CreateUser) Validate(ctx context.Context) error {
 	if !strings.Contains(r.Email, "@") {
 		return errors.New("email must be an address")
 	}
@@ -59,29 +59,83 @@ func handler(w http.ResponseWriter, r *http.Request) {
       lower-casing an address, filling a default.
     </p>
 
-    <h2 id="errors">Reporting several problems</h2>
     <p>
-      Binding stops at the first failure, but <code>Validate</code> is your
-      code and can collect as many as it likes. <code>errors.Join</code> is
-      usually enough:
+      <code>Validate</code> runs only when every field bound. A field that
+      failed holds whatever was left in it, so running your rules over it would add
+      a second, misleading error for the same input; binding failures come back
+      as <a href="/docs/errors.html#binderrors"><code>BindErrors</code></a>
+      instead.
+    </p>
+    <p>
+      A <code>Validate</code> promoted from an embedded pointer, such as
+      <code>*Audit</code>, is not called when that pointer is still nil
+      because none of its fields was sent: there is nothing to validate, and
+      calling it would dereference nil. A type's own <code>Validate</code>
+      always runs, as does one promoted from an embedded value that is not
+      itself reached through a nil pointer. An embedded
+      <code>Validator</code> interface that is nil is skipped the same way.
     </p>
 
-    <bd-code data-lang="go"><pre><code>func (r CreateUser) Validate() error {
-	var problems []error
-	if r.Name == "" {
-		problems = append(problems, errors.New("name is required"))
+    <h2 id="context">The request's context</h2>
+    <p>
+      <code>Bind</code> passes <code>r.Context()</code>, so a rule can use the
+      authenticated user, a tenant, or the request's deadline for a lookup.
+      Rules that need none of that simply ignore it:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>func (r CreateOrder) Validate(ctx context.Context) error {
+	user, ok := auth.UserFrom(ctx)
+	if !ok || !user.CanOrder(r.SKU) {
+		return errors.New("sku not available to this account")
 	}
-	if r.Age &lt; 18 {
-		problems = append(problems, errors.New("must be 18 or older"))
-	}
-	return errors.Join(problems...)
+	return nil
 }</code></pre></bd-code>
 
     <p>
-      Returning your own error type works just as well, and
-      <code>errors.As</code> will find it through binder — so a handler can
-      render a field-by-field JSON response while still treating a bind failure
-      and a validation failure the same way.
+      If validation does I/O, a cancelled request surfaces as an error matching
+      <code>errors.Is(err, context.Canceled)</code>.
+    </p>
+
+    <h2 id="errors">Reporting several problems</h2>
+    <p>
+      binder reports every field that failed to bind; <code>Validate</code> is
+      your code, and can report every rule that failed. Return an error type of
+      your own, and a handler can recognise it with <code>errors.As</code> and
+      render it field by field:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>// ValidationErrors holds problems keyed by the field name the client sent.
+type ValidationErrors map[string]string
+
+func (v ValidationErrors) Error() string {
+	return fmt.Sprintf("%d fields failed validation", len(v))
+}
+
+func (r CreateUser) Validate(ctx context.Context) error {
+	errs := ValidationErrors{}
+	if !strings.Contains(r.Email, "@") {
+		errs["email"] = "is not a valid address"
+	}
+	if r.Age &lt; 18 {
+		errs["age"] = "must be 18 or older"
+	}
+	if len(errs) &gt; 0 {
+		return errs
+	}
+	return nil
+}
+
+// In the handler's error handling:
+var valErrs ValidationErrors
+if errors.As(err, &amp;valErrs) {
+	// respond with valErrs, e.g. as a 422 body
+}</code></pre></bd-code>
+
+    <p>
+      A named type is easier to recognise than an <code>errors.Join</code> of
+      plain errors, since other errors — <code>ErrMalformedBody</code>, for one
+      — also wrap more than one error, and a check for “something joined” would
+      catch them too.
     </p>
 
     <h2 id="why-not">Why there are no validation tags</h2>
@@ -91,8 +145,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
       inventing a rule language, an error format and a translation story, and
       the result would be a worse version of what
       <a href="https://github.com/go-playground/validator" rel="noopener">go-playground/validator</a>
-      already does well. binder stays small enough to read in one sitting, and
-      composes with whichever validator you prefer:
+      already does well. binder composes with whichever validator you prefer:
     </p>
 
     <bd-code data-lang="go"><pre><code>var validate = validator.New()
@@ -102,8 +155,8 @@ type CreateUser struct {
 	Age   int    `body:"age"   validate:"gte=18"`
 }
 
-func (r CreateUser) Validate() error {
-	return validate.Struct(r)
+func (r CreateUser) Validate(ctx context.Context) error {
+	return validate.StructCtx(ctx, r)
 }</code></pre></bd-code>
 
     <p>

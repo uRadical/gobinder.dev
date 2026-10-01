@@ -1,10 +1,10 @@
 title: Binding sources
-desc: The six binder struct tags — path, query, body, json, cookie and header — what each reads from the request, how repeated values fill slices, and which tag wins when a field carries more than one.
+desc: The seven binder struct tags — path, query, body, json, cookie, header and form — what each reads from the request, how repeated values fill slices, and which tag wins when a field carries more than one.
 ---
     <h1>Binding sources</h1>
     <p class="docs-lede">
-      A field's tag says where its value comes from. There are six sources, and
-      a field may name more than one — in which case the first in the order below
+      A field's tag says where its value comes from. There are seven tags, and
+      a field may carry more than one — in which case the first in the order below
       wins.
     </p>
 
@@ -13,18 +13,20 @@ desc: The six binder struct tags — path, query, body, json, cookie and header 
       <thead><tr><th>Tag</th><th>Reads</th><th>Notes</th></tr></thead>
       <tbody>
         <tr><td><code>path:"id"</code></td><td>Path parameters</td><td>Via <code>Request.PathValue</code>, so the router must have declared <code>{id}</code>.</td></tr>
-        <tr><td><code>query:"page"</code></td><td>URL query string</td><td>The query is parsed once per call, and only if some field asks for it.</td></tr>
-        <tr><td><code>body:"email"</code></td><td>Request body</td><td>JSON or form-encoded, chosen by <code>Content-Type</code>.</td></tr>
+        <tr><td><code>query:"page"</code></td><td>URL query string</td><td>Read from the raw query string for the keys fields ask for. A query of more than 64 parameters is parsed into a map once instead; one beyond <code>net/url</code>'s limit of 10,000 parameters binds nothing from the query.</td></tr>
+        <tr><td><code>body:"email"</code></td><td>Request body</td><td>JSON, form-encoded or multipart, chosen by <code>Content-Type</code>.</td></tr>
         <tr><td><code>json:"email"</code></td><td>Request body</td><td>For structs whose tags are shared with serialisation.</td></tr>
         <tr><td><code>cookie:"session"</code></td><td>Request cookies</td><td>Name matched exactly, as cookies are case-sensitive.</td></tr>
         <tr><td><code>header:"X-Request-ID"</code></td><td>Request headers</td><td>Matched case-insensitively.</td></tr>
+        <tr><td><code>form:"page"</code></td><td>Form body, then query string</td><td>As <code>r.FormValue</code> reads: <a href="#form">the body's value when it has the key</a>, otherwise the query's.</td></tr>
       </tbody>
     </table>
     </div>
 
     <p>
       Precedence runs <code>path</code>, <code>query</code>, <code>body</code>,
-      <code>json</code>, <code>cookie</code>, <code>header</code>. A field
+      <code>json</code>, <code>cookie</code>, <code>header</code>,
+      <code>form</code>. A field
       tagged both <code>query</code> and <code>header</code> is read from the
       query string; the header is not consulted, even when the query has no such
       key.
@@ -34,6 +36,19 @@ desc: The six binder struct tags — path, query, body, json, cookie and header 
       Fields with no binding tag are left alone, and so are unexported fields —
       reflection cannot set them, so a tag on one is silently ignored rather
       than an error.
+    </p>
+
+    <p>
+      Other frameworks' tags are left alone too, with three exceptions: Gin's
+      <code>binding</code> and <code>uri</code> and Echo's <code>param</code>.
+      A field carrying one was meant to bind, and would otherwise be left unset
+      without a word, so binding refuses the type with
+      <a href="/docs/errors.html"><code>ErrInvalidTarget</code></a>, naming the
+      field and what to use instead: <code>path:</code> for <code>uri:</code>
+      and <code>param:</code>, and the <code>required</code> option and a
+      <code>Validate</code> method for <code>binding:</code>. A
+      <code>validate:</code> tag is not refused, since a <code>Validate</code>
+      method may hand it to a validation library.
     </p>
 
     <h2 id="path">Path parameters</h2>
@@ -65,11 +80,16 @@ type Search struct {
 }</code></pre></bd-code>
 
     <p>
-      For <code>path</code> and <code>query</code> an empty value counts as
-      missing, because neither source distinguishes “absent” from “present and
-      empty”: <code>?q=</code> and no <code>q</code> at all arrive identically.
-      That matters only in combination with
-      <a href="/docs/options.html#required"><code>required</code></a>.
+      For <code>path</code>, <code>query</code> and <code>header</code> an empty
+      value counts as missing: binder treats <code>?q=</code> exactly as no
+      <code>q</code> at all. For a slice that holds when every value given is
+      empty; an empty value among others is an element, and an error for a
+      non-string element type.
+      An empty value leaves the field untouched, so a pointer stays nil, a
+      default survives, and <code>?page=</code> on an <code>int</code> field is
+      not a parse error; with
+      <a href="/docs/options.html#required"><code>required</code></a> it is
+      reported as missing.
     </p>
 
     <h2 id="body">Body: <code>body</code> and <code>json</code></h2>
@@ -89,8 +109,11 @@ type Search struct {
       <code>application/json</code>, <code>text/json</code>,
       <code>application/vnd.api+json</code>, <code>application/hal+json</code>
       and <code>application/problem+json</code> all parse as JSON. Form bodies
-      need <code>application/x-www-form-urlencoded</code>. A body whose type is
-      neither is left unread, and the request binds from its other sources.
+      need <code>application/x-www-form-urlencoded</code>, and
+      <a href="#multipart">multipart bodies</a>
+      <code>multipart/form-data</code>. A body of any other type is not
+      parsed, and the request binds from its other sources; it is still read,
+      within the size limit, when a field binds from the body.
     </p>
     <p>
       A body that <em>declares</em> one of those types and then fails to parse
@@ -107,7 +130,17 @@ type Search struct {
     <bd-code data-lang="go"><pre><code>type Account struct {
 	ID    string `json:"id"`
 	Email string `json:"email"`
+	Hash  string `json:"-"`
 }</code></pre></bd-code>
+
+    <p>
+      binder follows <code>encoding/json</code>'s naming where it matters for a
+      shared type: a <code>json:"-"</code> field is never bound, and an empty
+      name, as in <code>json:",omitempty"</code>, means the Go field name.
+      Unlike <code>encoding/json</code>, names match exactly rather than
+      case-insensitively, and binder reads its own options from the tag, so
+      <code>json:"x,omitempty"</code> also skips an empty value when binding.
+    </p>
 
     <div class="docs-note docs-warn">
       binder reads its options from whichever tag it uses, so
@@ -127,8 +160,8 @@ type Search struct {
 }</code></pre></bd-code>
 
     <p>
-      A cookie that is not present binds nothing and leaves the field at its
-      zero value, unless the field is tagged <code>required</code>.
+      A cookie that is not present binds nothing and leaves the field as it
+      was, unless the field is tagged <code>required</code>.
     </p>
 
     <h2 id="headers">Headers</h2>
@@ -142,6 +175,39 @@ type Search struct {
 	TraceID string   `header:"x-request-id"`
 	Accept  []string `header:"Accept"`
 }</code></pre></bd-code>
+
+    <h2 id="form">Form body or query: <code>form</code></h2>
+    <p>
+      <code>form:</code> reads a value the way <code>net/http</code>'s
+      <code>r.FormValue</code> does, and as Gin's <code>form</code> tag does:
+      from a form body when the body has the key, and otherwise from the query
+      string. One field serves an HTML form post and a <code>GET ?page=2</code>
+      alike:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type ListOrders struct {
+	Page   int               `form:"page"`   // body page=2, or ?page=2
+	Status []string          `form:"status"` // every value, from whichever has the key
+	Filter map[string]string `form:"filter"` // filter[team]=core, from either
+}</code></pre></bd-code>
+
+    <ul>
+      <li>A form body is <code>application/x-www-form-urlencoded</code> or
+        <code>multipart/form-data</code>, file parts included. A JSON body is
+        not a form, so on a JSON request <code>form:</code> reads the query
+        alone, and a JSON member of the same name is not bound by it.</li>
+      <li>Values come from one source or the other, never both: a slice or map
+        takes the body's values when the body has any, and otherwise the
+        query's.</li>
+      <li><code>required</code> and <code>omitempty</code> follow the rules of
+        the source the value came from: a key present but empty in a form body
+        satisfies <code>required</code>, and an empty query value counts as
+        missing.</li>
+      <li>With <code>DisallowUnknownFields</code>, a <code>form:</code> key is
+        known in a form body; in a JSON body it is not.</li>
+      <li><code>form:</code> has its own keys: a <code>body:"x"</code> field and
+        a <code>form:"x"</code> field both bind.</li>
+    </ul>
 
     <h2 id="multipart">Multipart forms and file uploads</h2>
     <p>
@@ -165,11 +231,13 @@ f, err := req.Avatar.Open()</code></pre></bd-code>
     </p>
 
     <div class="docs-note">
-      An upload counts against <a href="/docs/options.html"><code>MaxBodySize</code></a>
-      like any other body, and is held in memory rather than written to a
-      temporary file. Raise the limit deliberately on an upload endpoint —
-      without a bound, such an endpoint is the easiest way to exhaust a
-      server's memory.
+      An upload counts against the
+      <a href="/docs/options.html#maxbodysize">body size limit</a> like any
+      other body, and is held in memory rather than written to a temporary
+      file. Raise the limit deliberately on an upload endpoint, with
+      <code>BindOptions{MaxBodySize: 32 &lt;&lt; 20}</code> or whatever it
+      needs — without a bound, such an endpoint is the easiest way to exhaust
+      a server's memory.
     </div>
 
     <h2 id="repeated">Repeated values</h2>
@@ -186,13 +254,53 @@ f, err := req.Avatar.Open()</code></pre></bd-code>
 
     <p>
       A single value still binds as a one-element slice, so a handler never has
-      to special-case arity. Values are never split on commas:
+      to special-case arity, and into a slice of slices as a list of one list;
+      only a recursive type such as <code>type P []P</code> refuses one. Values are never split on commas:
       <code>?tags=a,b</code> is one value, the string <code>"a,b"</code>. If you
       want comma-separated input, split it yourself after binding, or bind into
       a <a href="/docs/types.html#textunmarshaler">type that unmarshals text</a>.
     </p>
 
     <div class="docs-note">
-      Repeated values filling slices is new in 1.1.0. Before that only the first
-      value bound, whatever the field's type.
+      Repeated values filling slices is new in 1.1.0. Before that a repeated query
+      parameter bound only its first value, whatever the field's type.
     </div>
+
+    <h2 id="maps">Maps</h2>
+    <p>
+      A map field binds from a JSON object, and from a query string or form
+      body written as <code>name[key]=value</code> pairs, the style OpenAPI
+      calls <code>deepObject</code>:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>type Search struct {
+	Filter map[string]string   `query:"filter"` // ?filter[status]=open&amp;filter[team]=core
+	Min    map[string]int      `query:"min"`    // ?min[price]=10
+	Flags  map[string]bool     `query:"flag"`   // ?flag[draft]=false
+	Tags   map[string][]string `query:"tags"`   // ?tags[any]=a&amp;tags[any]=b
+}</code></pre></bd-code>
+
+    <p>
+      Keys convert to the map's key type — any type that converts from text,
+      such as a string, a number, a bool or a <code>TextUnmarshaler</code> — and values as a field of the element type
+      would, so <code>map[string]time.Time</code> or
+      <code>map[string]uuid.UUID</code> work too. Clients usually
+      percent-encode the brackets, as <code>filter%5Bstatus%5D=open</code>,
+      which reads the same. In a query or form a repeated key fills a slice
+      value and otherwise binds its first value; in a JSON object the last
+      occurrence binds, as for any member. In a query or form an empty value counts as
+      absent, and a map with no entries is left nil, so <code>required</code>
+      reports it; a JSON object binds as sent, so <code>{}</code> is an empty
+      map that satisfies <code>required</code>, and a <code>null</code> value
+      gives its key the zero value, as in <code>encoding/json</code>.
+    </p>
+    <p>
+      A bad entry is reported under the name the client sent, such as
+      <code>min[price]</code>. Only one level of brackets is read:
+      <code>filter[a][b]</code> has no agreed meaning. The map is replaced,
+      not merged into. In a multipart form, file parts named this way bind
+      into a <code>map[string]*multipart.FileHeader</code> and are refused by
+      any other map. With <code>DisallowUnknownFields</code>, a form field
+      such as <code>meta[a]</code> counts as known when a map field is named
+      <code>meta</code>.
+    </p>

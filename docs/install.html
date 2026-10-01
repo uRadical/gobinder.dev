@@ -59,7 +59,7 @@
 
 <div class="wrap docs-layout">
   <nav class="docs-nav" aria-label="Documentation">
-      <p class="docs-version">Documents <strong>v1.1.0</strong></p>
+      <p class="docs-version">Documents <strong>v1.2.0</strong></p>
       <p class="docs-nav-title">Getting started</p>
       <ul>
         <li><a href="/docs/">Overview</a></li>
@@ -92,9 +92,8 @@
 
     <h2 id="requirements">Requirements</h2>
     <p>
-      <strong>Go 1.27 or newer.</strong> binder reads path parameters through
-      <code>Request.PathValue</code> and uses the standard library's
-      <code>uuid</code> package, so earlier toolchains will not build it. See
+      <strong>Go 1.27 or newer.</strong> binder's <em>go.mod</em> declares Go 1.27,
+      so earlier toolchains will not build it. See
       <a href="/docs/compatibility.html#go">the Go version policy</a> for how
       that minimum moves.
     </p>
@@ -108,7 +107,7 @@
       </section>
       <section data-label="Pin a version">
         <p>Ask for a particular release rather than whatever is newest.</p>
-        <bd-code><pre><code>go get uradical.io/go/binder@v1.1.0</code></pre></bd-code>
+        <bd-code><pre><code>go get uradical.io/go/binder@v1.2.0</code></pre></bd-code>
       </section>
       <section data-label="go mod tidy">
         <p>Write the import first and let the toolchain work out the rest.</p>
@@ -173,29 +172,34 @@ func main() {
 
     <p>
       Now drop the <code>author</code> key and send it again. Because that field
-      is tagged <code>required</code>, nothing is bound and the handler answers
+      is tagged <code>required</code>, binding fails and the handler answers
       400 with a message naming the field and the source it should have come
-      from:
+      from. Drop <code>text</code> as well, and both are reported, one per
+      line:
     </p>
 
     <div class="slab">
       <div class="slab-bar"><span></span><span></span><span></span><b>response</b></div>
-<pre class="slab-body"><code><span class="bad">missing required field Author: no body value named "author"</span></code></pre>
+<pre class="slab-body"><code><span class="bad">missing required field Author: no body value named "author"
+missing required field Text: no body value named "text"</span></code></pre>
     </div>
 
     <div class="docs-note">
       The error text is deliberately not part of the API — match on
-      <code>ErrMissingRequired</code> rather than on the string. See
+      <code>ErrMissingRequired</code> rather than on the string, and use
+      <code>BindErrors</code> to answer field by field. See
       <a href="/docs/errors.html">Error handling</a>.
     </div>
 
     <h2 id="content-types">What the body needs to say</h2>
     <p>
       Body binding follows the request's <code>Content-Type</code>. Send
-      <code>application/json</code> for JSON or
-      <code>application/x-www-form-urlencoded</code> for a form; anything else
+      <code>application/json</code> for JSON,
+      <code>application/x-www-form-urlencoded</code> for a form, or
+      <code>multipart/form-data</code> for a form with files; anything else
       leaves the body unparsed and the request binds from its path, query,
-      cookie and header values alone. The same struct handles both, so an HTML
+      cookie and header values alone (the body is still read, within the size
+      limit, when a field binds from it). The same struct handles both, so an HTML
       form post and an API call can share a handler:
     </p>
 
@@ -204,7 +208,7 @@ func main() {
 
     <h2 id="next">Where to go next</h2>
     <ul>
-      <li><a href="/docs/sources.html">Binding sources</a> — the six tags and their precedence.</li>
+      <li><a href="/docs/sources.html">Binding sources</a> — the seven tags and their precedence.</li>
       <li><a href="/docs/options.html">Options</a> — <code>required</code>, <code>omitempty</code> and per-call configuration.</li>
       <li><a href="/docs/errors.html">Error handling</a> — turning a bind failure into the right status code.</li>
     </ul>

@@ -8,7 +8,8 @@ shell lives here and each fragment carries only its own prose.
     python3 tools/build.py
 
 Writes docs/*.html, sitemap.xml and llms.txt. Everything it writes is listed in
-GENERATED below and should not be edited by hand.
+GENERATED below and should not be edited by hand. The quick reference in
+llms.txt is written in tools/llms-reference.md.
 """
 
 from __future__ import annotations
@@ -17,10 +18,11 @@ import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-PAGES = ROOT / "tools" / "pages"
+TOOLS = ROOT / "tools"
+PAGES = TOOLS / "pages"
 
 SITE = "https://gobinder.dev"
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 # Appended to the <title> of every page, so a browser tab or a search result
 # carries the house name. The og:/twitter: titles stay unbranded — a share card
@@ -31,7 +33,7 @@ BRAND = "uRadical"
 # rebuilding an unchanged site produces an unchanged sitemap — CI rebuilds and
 # fails on a diff, and a date that moved every midnight would fail every day.
 # Bump it when the content changes.
-LASTMOD = "2026-08-23"
+LASTMOD = "2026-09-30"
 REPO = "https://github.com/uRadical/binder"
 MODULE = "uradical.io/go/binder"
 
@@ -43,13 +45,13 @@ NAV = [
     ("Getting started", [
         ("index",         "Overview",            "What binder does, and the shape of a bound request."),
         ("install",       "Install &amp; quick start", "Add the module, bind your first handler."),
-        ("sources",       "Binding sources",     "path, query, body, json, cookie, header — and which wins."),
+        ("sources",       "Binding sources",     "path, query, body, json, cookie, header, form — and which wins."),
     ]),
     ("Reference", [
         ("types",         "Types &amp; conversion",   "Primitives, slices, nested structs, TextUnmarshaler."),
-        ("options",       "Options",             "omitempty, required, BindOptions, MaxBodySize."),
-        ("errors",        "Error handling",      "BindError, the sentinels, and the status code for each."),
-        ("validation",    "Validation",          "The Validator interface, and what binder deliberately leaves out."),
+        ("options",       "Options",             "omitempty, required, BindOptions and body size limits."),
+        ("errors",        "Error handling",      "BindErrors, the sentinels, and the status code for each."),
+        ("validation",    "Validation",          "Validate(ctx), reporting several problems, and why there are no tags."),
         ("api",           "API reference",       "Every exported identifier in the package."),
     ]),
     ("Project", [
@@ -262,10 +264,15 @@ def llms_txt(metas: dict[str, dict[str, str]]) -> str:
         "# binder",
         "",
         f"> Zero-dependency HTTP request binding for Go, v{VERSION}. Maps path parameters, "
-        "query strings, JSON and form bodies, cookies and headers onto a struct using "
-        "struct tags. Binding only — no validation framework, no router, no logging.",
+        "query strings, JSON, form and multipart bodies, cookies and headers onto a struct "
+        "using struct tags, reports every field that failed at once, then runs the type's "
+        "own Validate(ctx) method. No validation tags, no router, no logging.",
         "",
         f"Module: `{MODULE}` · Source: {REPO} · License: MIT · Requires Go 1.27.",
+        "",
+        # A compact reference, so that a model writing a handler has the tags,
+        # options and error handling at hand without fetching every page.
+        (TOOLS / "llms-reference.md").read_text(encoding="utf-8").rstrip("\n"),
         "",
         "## Docs",
         "",

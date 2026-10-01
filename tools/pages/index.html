@@ -1,24 +1,25 @@
 title: Documentation
-desc: Documentation for binder 1.1.0, a zero-dependency Go library that binds HTTP request data — path, query, body, multipart forms, cookies and headers — onto a struct using struct tags.
+desc: Documentation for binder 1.2.0, a zero-dependency Go library that binds HTTP request data — path, query, body, multipart forms, cookies and headers — onto a struct using struct tags.
 ---
     <h1>Documentation</h1>
     <p class="docs-lede">
       binder maps the parts of an <code>*http.Request</code> onto the fields of a
-      struct, using struct tags to say where each field comes from. That is the
-      whole library. It does not validate, route, log or transform — those belong
-      to packages that already do them well.
+      struct, using struct tags to say where each field comes from, then runs
+      the validation your type defines. That is the whole library. It ships no
+      rule language, and does not route, log or transform — those belong to
+      packages that already do them well.
     </p>
 
     <p>
-      These pages document <strong>v1.1.0</strong>. The module path is
+      These pages document <strong>v1.2.0</strong>. The module path is
       <code>uradical.io/go/binder</code> and it requires Go 1.27.
     </p>
 
     <h2 id="shape">The shape of it</h2>
     <p>
       One call, one struct. Each field names a source and a key; binder reads
-      the request once, converts each value to the field's type, and reports the
-      first field that could not be filled.
+      the request once, converts each value to the field's type, and reports
+      every field that could not be filled, together.
     </p>
 
     <bd-code data-lang="go"><pre><code>type UpdateUser struct {
@@ -47,7 +48,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
       </a>
       <a class="doc-card" href="/docs/sources.html">
         <em>2</em><strong>Binding sources</strong>
-        <span>The six tags, what each reads, and which one wins when a field carries several.</span>
+        <span>The seven tags, what each reads, and which one wins when a field carries several.</span>
       </a>
       <a class="doc-card" href="/docs/types.html">
         <em>3</em><strong>Types &amp; conversion</strong>
@@ -65,10 +66,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
       was never there:
     </p>
     <ul>
-      <li><strong>No streamed uploads.</strong> A <code>multipart/form-data</code> body <a href="/docs/sources.html#multipart">binds its file parts</a>, but the whole request is held in memory under <code>MaxBodySize</code> rather than spilled to disk.</li>
-      <li><strong>No validation rules.</strong> There is a <a href="/docs/validation.html"><code>Validator</code> hook</a> so your own checks run as part of binding, but no <code>min</code>, <code>max</code> or <code>email</code> tags.</li>
+      <li><strong>No streamed uploads.</strong> A <code>multipart/form-data</code> body <a href="/docs/sources.html#multipart">binds its file parts</a>, but the whole request is held in memory under the body size limit rather than spilled to disk.</li>
+      <li><strong>No validation rules.</strong> Your <a href="/docs/validation.html"><code>Validate(ctx)</code> method</a> runs as part of binding, but there are no <code>min</code>, <code>max</code> or <code>email</code> tags.</li>
       <li><strong>No fixed-size arrays.</strong> <code>[]int</code> binds; <code>[5]int</code> does not. REST payloads are variable-length.</li>
-      <li><strong>No defaults.</strong> A missing optional value leaves the field at its zero value; set defaults before you bind.</li>
+      <li><strong>No defaults.</strong> A missing optional value leaves the field as it was, so set defaults on the struct before you bind.</li>
       <li><strong>No routing.</strong> <code>path:</code> reads what <code>net/http</code>'s own <code>PathValue</code> already resolved.</li>
     </ul>
 

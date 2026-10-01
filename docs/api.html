@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>API reference — binder | uRadical</title>
-<meta name="description" content="Every exported identifier in uradical.io/go/binder — Bind, BindWithOptions, BindStruct, BindOptions, BindError, Validator, MaxBodySize and the five sentinel errors.">
+<meta name="description" content="Every exported identifier in uradical.io/go/binder — Bind, BindWithOptions, BindOptions, BindError, BindErrors, Validator, DefaultMaxBodySize and the five sentinel errors.">
 <link rel="canonical" href="https://gobinder.dev/docs/api.html">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <meta name="color-scheme" content="light dark">
@@ -14,10 +14,10 @@
 <meta property="og:site_name" content="binder">
 <meta property="og:url" content="https://gobinder.dev/docs/api.html">
 <meta property="og:title" content="API reference — binder">
-<meta property="og:description" content="Every exported identifier in uradical.io/go/binder — Bind, BindWithOptions, BindStruct, BindOptions, BindError, Validator, MaxBodySize and the five sentinel errors.">
+<meta property="og:description" content="Every exported identifier in uradical.io/go/binder — Bind, BindWithOptions, BindOptions, BindError, BindErrors, Validator, DefaultMaxBodySize and the five sentinel errors.">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="API reference — binder">
-<meta name="twitter:description" content="Every exported identifier in uradical.io/go/binder — Bind, BindWithOptions, BindStruct, BindOptions, BindError, Validator, MaxBodySize and the five sentinel errors.">
+<meta name="twitter:description" content="Every exported identifier in uradical.io/go/binder — Bind, BindWithOptions, BindOptions, BindError, BindErrors, Validator, DefaultMaxBodySize and the five sentinel errors.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sen:wght@400;700;800&display=swap" rel="stylesheet">
@@ -59,7 +59,7 @@
 
 <div class="wrap docs-layout">
   <nav class="docs-nav" aria-label="Documentation">
-      <p class="docs-version">Documents <strong>v1.1.0</strong></p>
+      <p class="docs-version">Documents <strong>v1.2.0</strong></p>
       <p class="docs-nav-title">Getting started</p>
       <ul>
         <li><a href="/docs/">Overview</a></li>
@@ -86,8 +86,8 @@
     <p class="crumb"><a href="/">binder</a> / <a href="/docs/">Docs</a> / API reference</p>
     <h1>API reference</h1>
     <p class="docs-lede">
-      The whole exported surface of <code>uradical.io/go/binder</code>: three
-      functions, three types, two variables and five sentinel errors. The
+      The whole exported surface of <code>uradical.io/go/binder</code>: two
+      functions, four types, one constant and five sentinel errors. The
       generated reference lives at
       <a href="https://pkg.go.dev/uradical.io/go/binder" rel="noopener">pkg.go.dev</a>;
       this page is the same material with the reasoning attached.
@@ -97,57 +97,44 @@
 
     <div class="sym" id="Bind">
       <h3><code>Bind</code><span class="kind">func</span></h3>
-      <p class="sig"><code>func Bind(r *http.Request, i interface{}) error</code></p>
+      <p class="sig"><code>func Bind(r *http.Request, i any) error</code></p>
       <p>
         Binds an HTTP request into the struct <code>i</code> points at. The
         target must be a non-nil pointer to a struct; anything else is
-        <code>ErrInvalidTarget</code>. Equivalent to
-        <code>BindWithOptions(r, i, BindOptions{})</code>.
+        <code>ErrInvalidTarget</code>. Bodies are capped at
+        <a href="#DefaultMaxBodySize"><code>DefaultMaxBodySize</code></a>.
       </p>
       <p>
-        Fields reflection cannot set — unexported ones — are ignored even when
-        they carry a tag. If the target implements
+        Every field is attempted, and every field that fails is reported
+        together as <a href="#BindErrors"><code>BindErrors</code></a>. Fields
+        reflection cannot set — unexported ones — are ignored even when they
+        carry a tag. If the target implements
         <a href="#Validator"><code>Validator</code></a>, <code>Validate</code>
-        runs after every field is bound and its error is returned.
+        runs once every field has bound, and its error is returned.
       </p>
       <p class="doc-subhead">Returns an error when</p>
       <ul>
+        <li>any field fails to bind — <code>BindErrors</code>, one entry per failure, whether a value would not convert, a <code>required</code> value was missing (<code>ErrMissingRequired</code>) or, with <code>DisallowUnknownFields</code>, the body carried a key nothing binds (<code>ErrUnknownField</code>);</li>
         <li>the target is not a non-nil pointer to a struct — <code>ErrInvalidTarget</code>;</li>
-        <li>a value will not convert to its field's type — a <code>*BindError</code>;</li>
-        <li>a field tagged <code>required</code> had no value — <code>ErrMissingRequired</code>;</li>
-        <li>the body exceeded <code>MaxBodySize</code> — <code>ErrBodyTooLarge</code>;</li>
+        <li>the body exceeded the size limit — <code>ErrBodyTooLarge</code>;</li>
         <li>the body could not be parsed — <code>ErrMalformedBody</code>;</li>
-        <li><code>Validate</code> failed.</li>
+        <li>the request was nil, or the target has a field that cannot be bound, such as a pointer type that points to itself, or one tagged <code>binding</code>, <code>uri</code> or <code>param</code> for another framework — <code>ErrInvalidTarget</code>;</li>
+        <li>the body could not be read at all, such as when the client disconnected — the I/O error, wrapped;</li>
+        <li><code>Validate</code> failed — its error, wrapped.</li>
       </ul>
     </div>
 
     <div class="sym" id="BindWithOptions">
       <h3><code>BindWithOptions</code><span class="kind">func</span></h3>
-      <p class="sig"><code>func BindWithOptions(r *http.Request, i interface{}, opts BindOptions) error</code></p>
+      <p class="sig"><code>func BindWithOptions(r *http.Request, i any, opts BindOptions) error</code></p>
       <p>
         <code>Bind</code> with per-call configuration. The zero
         <code>BindOptions</code> behaves exactly as <code>Bind</code> does, so
-        this is the function to reach for rather than mutating package state
-        when only one endpoint needs a different limit.
+        only the fields you care about need setting — a larger body limit on an
+        upload endpoint, say, without touching any other.
       </p>
       <p>
         A nil request is <code>ErrInvalidTarget</code> rather than a panic.
-      </p>
-    </div>
-
-    <div class="sym" id="BindStruct">
-      <h3><code>BindStruct</code><span class="kind">func</span></h3>
-      <p class="sig"><code>func BindStruct(field reflect.Value, data map[string]interface{}) error</code></p>
-      <p>
-        Binds a decoded map into a struct value directly, without a request.
-        This is the machinery behind nested struct binding, exported for the
-        cases where you already hold decoded data — a websocket frame, a queue
-        message, a batch element — and want the same tag semantics.
-      </p>
-      <p>
-        Handles pointer and non-pointer values, allocating a nil pointer as
-        needed. Fields are matched on <code>body</code>, falling back to
-        <code>json</code>. Most code should use <code>Bind</code> instead.
       </p>
     </div>
 
@@ -156,14 +143,13 @@
     <div class="sym" id="BindOptions">
       <h3><code>BindOptions</code><span class="kind">type</span></h3>
       <bd-code data-lang="go"><pre><code>type BindOptions struct {
-	// MaxBodySize overrides the package-level MaxBodySize for this call.
-	// Zero leaves the package setting in force, and a negative value
-	// removes the limit for this call alone.
+	// MaxBodySize is the largest request body, in bytes, this call reads.
+	// Zero applies DefaultMaxBodySize, and a negative value removes the limit.
 	MaxBodySize int64
 
-	// DisallowUnknownFields makes binding fail with ErrUnknownField when
-	// the request body carries a top-level key that no field of the target
-	// binds. Keys nested inside objects are not inspected.
+	// DisallowUnknownFields reports each top-level body key that no field of
+	// the target binds, as a BindErrors entry wrapping ErrUnknownField. Keys
+	// nested inside objects are not inspected.
 	DisallowUnknownFields bool
 }</code></pre></bd-code>
       <p>See <a href="/docs/options.html#bindoptions">Options</a> for how each behaves.</p>
@@ -172,56 +158,65 @@
     <div class="sym" id="BindError">
       <h3><code>BindError</code><span class="kind">type</span></h3>
       <bd-code data-lang="go"><pre><code>type BindError struct {
-	Field   string // name of the Go struct field
+	Field   string // Go field, as a path when nested: Address.Postcode, Tags[2]
 	Source  string // tag source the value was read from, such as "query"
-	Name    string // key looked up in that source
-	Message string // complete description of what went wrong
-	Err     error  // underlying cause, reachable with errors.Is and errors.As
+	Name    string // key the client sent, as a path when nested: address.postcode
+	Message string // description for logs; its wording is not stable
+	Err     error  // cause: ErrMissingRequired, ErrUnknownField or a conversion error
 }
 
 func (e *BindError) Error() string
 func (e *BindError) Unwrap() error</code></pre></bd-code>
       <p>
-        Describes a failure to bind one field. Reach it with
-        <code>errors.As</code>; the fields, not the message, are the stable
-        part. See <a href="/docs/errors.html#binderror">Error handling</a>.
+        One failure: a field that could not be bound, or a body member no field
+        binds. Key client-facing output on <code>Name</code>, the key as the
+        client sent it; it is empty only for an unknown member whose name was
+        itself empty. <code>Field</code> is the Go-side name for logs, and is empty for
+        an unknown body member, since no field binds it. See
+        <a href="/docs/errors.html#binderrors">Error handling</a>.
+      </p>
+    </div>
+
+    <div class="sym" id="BindErrors">
+      <h3><code>BindErrors</code><span class="kind">type</span></h3>
+      <bd-code data-lang="go"><pre><code>type BindErrors []*BindError
+
+func (e BindErrors) Error() string   // one line per failure
+func (e BindErrors) Unwrap() []error</code></pre></bd-code>
+      <p>
+        What <code>Bind</code> returns when any field fails, whether one or
+        several — the same shape either way, so a handler has one path. Entries
+        follow the order the struct declares its fields, then any unknown body
+        members, and there are at most 100 of them. <code>Unwrap</code> exposes each entry, so
+        <code>errors.Is(err, ErrMissingRequired)</code> reports whether any
+        field was missing. Reach it with <code>errors.As</code>.
       </p>
     </div>
 
     <div class="sym" id="Validator">
       <h3><code>Validator</code><span class="kind">type</span></h3>
       <bd-code data-lang="go"><pre><code>type Validator interface {
-	Validate() error
+	Validate(ctx context.Context) error
 }</code></pre></bd-code>
       <p>
-        Implemented by a target that wants its own checks run after binding.
-        See <a href="/docs/validation.html">Validation</a>.
+        Implemented by a target that wants its own rules run once binding
+        succeeds. <code>Bind</code> passes the request's context. See
+        <a href="/docs/validation.html">Validation</a>.
       </p>
     </div>
 
-    <h2 id="variables">Variables and constants</h2>
-
-    <div class="sym" id="MaxBodySize">
-      <h3><code>MaxBodySize</code><span class="kind">var</span></h3>
-      <p class="sig"><code>var MaxBodySize = DefaultMaxBodySize</code></p>
-      <p>
-        The largest request body, in bytes, that <code>Bind</code> will read. A
-        larger body is rejected with <code>ErrBodyTooLarge</code> rather than
-        buffered. Zero or less disables the limit.
-      </p>
-      <p>
-        Read on every call, so set it during initialisation rather than while
-        requests are in flight.
-      </p>
-    </div>
+    <h2 id="constants">Constants</h2>
 
     <div class="sym" id="DefaultMaxBodySize">
       <h3><code>DefaultMaxBodySize</code><span class="kind">const</span></h3>
       <p class="sig"><code>const DefaultMaxBodySize int64 = 10 &lt;&lt; 20 // 10 MB</code></p>
       <p>
-        The value <code>MaxBodySize</code> starts at. Its <em>value</em> is not
-        part of the compatibility contract; the constant is, so code that wants
-        to restore the default can name it.
+        The largest body <code>Bind</code> reads, and the limit
+        <code>BindWithOptions</code> applies when <code>MaxBodySize</code> is
+        zero. A larger body is rejected with <code>ErrBodyTooLarge</code>
+        rather than buffered. Its <em>value</em> is not part of the
+        compatibility contract; pass <code>BindOptions.MaxBodySize</code> if
+        your service depends on a particular limit.
       </p>
     </div>
 
@@ -233,10 +228,10 @@ func (e *BindError) Unwrap() error</code></pre></bd-code>
       <thead><tr><th>Sentinel</th><th>Returned when</th></tr></thead>
       <tbody>
         <tr><td><code>ErrMalformedBody</code></td><td>The body could not be parsed as the format its <code>Content-Type</code> declares.</td></tr>
-        <tr><td><code>ErrBodyTooLarge</code></td><td>The body exceeded the effective <code>MaxBodySize</code>.</td></tr>
-        <tr><td><code>ErrInvalidTarget</code></td><td>The target was not a non-nil pointer to a struct, or the request was nil.</td></tr>
-        <tr><td><code>ErrMissingRequired</code></td><td>A field tagged <code>required</code> had no value. Wrapped by a <code>BindError</code>.</td></tr>
-        <tr><td><code>ErrUnknownField</code></td><td><code>DisallowUnknownFields</code> was set and the body carried a key nothing binds.</td></tr>
+        <tr><td><code>ErrBodyTooLarge</code></td><td>The body exceeded the size limit.</td></tr>
+        <tr><td><code>ErrInvalidTarget</code></td><td>The target was not a non-nil pointer to a struct, the request was nil, or the target has a field that cannot be bound, such as a pointer type that points to itself, or one tagged <code>binding</code>, <code>uri</code> or <code>param</code> for another framework.</td></tr>
+        <tr><td><code>ErrMissingRequired</code></td><td>A field tagged <code>required</code> had no value. Carried by a <code>BindErrors</code> entry.</td></tr>
+        <tr><td><code>ErrUnknownField</code></td><td><code>DisallowUnknownFields</code> was set and the body carried a key nothing binds. Carried by a <code>BindErrors</code> entry.</td></tr>
       </tbody>
     </table>
     </div>
@@ -248,10 +243,11 @@ func (e *BindError) Unwrap() error</code></pre></bd-code>
       <tbody>
         <tr><td><code>path:"name"</code></td><td>Path parameters, via <code>Request.PathValue</code></td></tr>
         <tr><td><code>query:"name"</code></td><td>URL query parameters</td></tr>
-        <tr><td><code>body:"name"</code></td><td>Request body, JSON or form-encoded by <code>Content-Type</code></td></tr>
+        <tr><td><code>body:"name"</code></td><td>Request body: JSON, form-encoded or multipart, by <code>Content-Type</code></td></tr>
         <tr><td><code>json:"name"</code></td><td>Request body; for tags shared with serialisation</td></tr>
         <tr><td><code>cookie:"name"</code></td><td>Request cookies</td></tr>
         <tr><td><code>header:"name"</code></td><td>Request headers, matched case-insensitively</td></tr>
+        <tr><td><code>form:"name"</code></td><td>A form body's value when it has the key, otherwise the query's, as <code>r.FormValue</code> reads</td></tr>
       </tbody>
     </table>
     </div>

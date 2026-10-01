@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Error handling — binder | uRadical</title>
-<meta name="description" content="How binder reports failures — the BindError type naming field, source and key, the five sentinel errors, and which HTTP status each one deserves.">
+<meta name="description" content="How binder reports failures — every failing field at once as BindErrors, each naming field, source and key, the five sentinel errors, and which HTTP status each one deserves.">
 <link rel="canonical" href="https://gobinder.dev/docs/errors.html">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <meta name="color-scheme" content="light dark">
@@ -14,10 +14,10 @@
 <meta property="og:site_name" content="binder">
 <meta property="og:url" content="https://gobinder.dev/docs/errors.html">
 <meta property="og:title" content="Error handling — binder">
-<meta property="og:description" content="How binder reports failures — the BindError type naming field, source and key, the five sentinel errors, and which HTTP status each one deserves.">
+<meta property="og:description" content="How binder reports failures — every failing field at once as BindErrors, each naming field, source and key, the five sentinel errors, and which HTTP status each one deserves.">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Error handling — binder">
-<meta name="twitter:description" content="How binder reports failures — the BindError type naming field, source and key, the five sentinel errors, and which HTTP status each one deserves.">
+<meta name="twitter:description" content="How binder reports failures — every failing field at once as BindErrors, each naming field, source and key, the five sentinel errors, and which HTTP status each one deserves.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sen:wght@400;700;800&display=swap" rel="stylesheet">
@@ -59,7 +59,7 @@
 
 <div class="wrap docs-layout">
   <nav class="docs-nav" aria-label="Documentation">
-      <p class="docs-version">Documents <strong>v1.1.0</strong></p>
+      <p class="docs-version">Documents <strong>v1.2.0</strong></p>
       <p class="docs-nav-title">Getting started</p>
       <ul>
         <li><a href="/docs/">Overview</a></li>
@@ -86,54 +86,95 @@
     <p class="crumb"><a href="/">binder</a> / <a href="/docs/">Docs</a> / Error handling</p>
     <h1>Error handling</h1>
     <p class="docs-lede">
-      binder distinguishes a bad request from a bad handler. Failures about one
-      field arrive as a <code>*BindError</code> naming it; failures about the
-      request as a whole carry a sentinel you can match with
-      <code>errors.Is</code>. Between them a handler can answer with the right
-      status code without parsing any message text.
+      binder distinguishes a bad request from a bad handler. Failures about
+      fields arrive together as <code>BindErrors</code>, one entry per
+      failure; failures about the request as a whole carry a sentinel you
+      can match with <code>errors.Is</code>. Between them a handler can answer
+      with the right status code, and tell the client everything it got wrong,
+      without parsing any message text.
     </p>
 
-    <h2 id="binderror">BindError</h2>
+    <h2 id="binderrors">Every field that failed, at once</h2>
     <p>
-      Anything that concerns a single field — a value that would not convert, a
-      required value that was not sent, a <code>TextUnmarshaler</code> that
-      refused — is a <code>*BindError</code>:
+      Binding does not stop at the first bad field. Every field is attempted,
+      and when any fail, <code>Bind</code> returns <code>BindErrors</code>, a
+      list of <code>*BindError</code> in the order the struct declares its
+      fields. One failure has the same shape as several, so a handler has one
+      path, and a client can fix all of its input in one round trip. At most
+      100 failures are reported; once that many are recorded, binding stops
+      converting values and only checks the rest of the body is well-formed,
+      so rejecting a flood of bad values costs about what reading it does. A
+      path of more than 64 parts, a part being a field or key with its index,
+      keeps its ends and elides the middle, and a map key longer than 64
+      bytes is named by at most its first 64 and <code>…</code>. A message
+      quotes at most 256 bytes of the value that failed; <code>Err</code>
+      keeps it whole. A query or form field stops
+      converting at its own hundredth failure:
+    </p>
+
+    <bd-code data-lang="go"><pre><code>var errs binder.BindErrors
+if errors.As(err, &amp;errs) {
+	problems := map[string]string{}
+	for _, e := range errs {
+		switch {
+		case errors.Is(e, binder.ErrMissingRequired):
+			problems[e.Name] = "required"
+		case errors.Is(e, binder.ErrUnknownField):
+			problems[e.Name] = "unknown field"
+		default:
+			problems[e.Name] = "invalid value"
+		}
+	}
+	// respond with problems as a 400 body
+}</code></pre></bd-code>
+
+    <p>
+      A request with a bad path value, a missing required body field and, with
+      <code>DisallowUnknownFields</code>, an unknown key gets all three back in
+      one response. <code>errors.Is</code>
+      sees through the list, so <code>errors.Is(err, binder.ErrMissingRequired)</code>
+      reports whether any field was missing.
+    </p>
+
+    <p>
+      A pointer field whose value fails to bind is left nil, so a nil pointer
+      always means nothing was bound through it. That holds for a pointer to a
+      struct too: if any of its members fails, the members that bound are
+      dropped with it. A pointer set before binding is kept. Other fields can
+      be left holding part of a value that failed, such as the members of a
+      struct that bound, so once <code>Bind</code> has returned an error, act
+      on the failures rather than on the struct.
+    </p>
+
+    <h3 id="binderror">BindError</h3>
+    <p>
+      Each entry says which input was at fault:
     </p>
 
     <bd-code data-lang="go"><pre><code>type BindError struct {
-	Field   string // name of the Go struct field
+	Field   string // Go field, as a path when nested: Address.Postcode, Tags[2]
 	Source  string // tag source the value came from, such as "query"
-	Name    string // key looked up in that source
-	Message string // complete description of what went wrong
-	Err     error  // underlying cause, reachable with errors.Is and errors.As
+	Name    string // key the client sent, as a path when nested: address.postcode
+	Message string // description for logs; its wording is not stable
+	Err     error  // cause: ErrMissingRequired, ErrUnknownField or a conversion error
 }</code></pre></bd-code>
 
-    <p>
-      Those four strings are what turns “400 Bad Request” into a message the
-      client can act on:
-    </p>
-
-    <bd-code data-lang="go"><pre><code>if err := binder.Bind(r, &amp;req); err != nil {
-	var bindErr *binder.BindError
-	if errors.As(err, &amp;bindErr) {
-		log.Printf("field %s from %s %q: %v",
-			bindErr.Field, bindErr.Source, bindErr.Name, bindErr)
-	}
-	http.Error(w, err.Error(), http.StatusBadRequest)
-	return
-}</code></pre></bd-code>
-
-    <p>
-      <code>BindError</code> implements <code>Unwrap</code>, so the cause stays
-      reachable. A required field failing matches both
-      <code>errors.As(err, &amp;bindErr)</code> for the detail and
-      <code>errors.Is(err, binder.ErrMissingRequired)</code> for the category.
-    </p>
+    <ul>
+      <li><strong>Key client-facing output on <code>Name</code>.</strong> It is the key the client actually sent, so it is set for every failure except an unknown member whose name was itself empty.</li>
+      <li><strong><code>Field</code> is for you</strong>, in logs. It is empty for an unknown body member, since no field binds one.</li>
+      <li><strong>Word messages yourself</strong> from <code>Name</code>, <code>Source</code> and the sentinel an entry wraps, as above. <code>Message</code> names Go fields and parser internals, and its text is outside the compatibility contract.</li>
+      <li><strong>Nested failures are entries of their own.</strong> A bad value inside a nested struct or a slice is reported with its path, such as <code>items[1].qty</code>, not folded into its parent.</li>
+    </ul>
 
     <h2 id="sentinels">The sentinels</h2>
     <p>
-      Five errors describe the request as a whole. Match on these, never on
+      Three errors describe the request as a whole. They end binding at once,
+      since nothing bound after them could be trusted, and are returned on
+      their own rather than as <code>BindErrors</code>. Match on these, never on
       message text — the text is explicitly outside the compatibility contract.
+      The one request-level failure without a sentinel is a body that could not
+      be read at all, such as a client disconnecting mid-upload; that returns
+      the I/O error, wrapped.
     </p>
 
     <div class="table-scroll">
@@ -146,76 +187,75 @@
           <td>400 Bad Request</td>
         </tr>
         <tr>
-          <td><code>ErrMissingRequired</code></td>
-          <td>A field tagged <code>required</code> had no value. Wrapped by a <code>BindError</code>.</td>
-          <td>400 Bad Request</td>
-        </tr>
-        <tr>
-          <td><code>ErrUnknownField</code></td>
-          <td>The body carried a key nothing binds, with <code>DisallowUnknownFields</code> set.</td>
-          <td>400 Bad Request</td>
-        </tr>
-        <tr>
           <td><code>ErrBodyTooLarge</code></td>
-          <td>The body exceeded <code>MaxBodySize</code>.</td>
+          <td>The body exceeded the size limit.</td>
           <td>413 Content Too Large</td>
         </tr>
         <tr>
           <td><code>ErrInvalidTarget</code></td>
-          <td>The target was not a non-nil pointer to a struct.</td>
+          <td>The target was not a non-nil pointer to a struct, the request was nil, or the target has a field that cannot be bound, such as a pointer type that points to itself, or one tagged <code>binding</code>, <code>uri</code> or <code>param</code> for another framework.</td>
           <td>500 Internal Server Error</td>
         </tr>
       </tbody>
     </table>
     </div>
 
+    <p>
+      Two more are carried by individual <code>BindErrors</code> entries rather
+      than returned alone: <code>ErrMissingRequired</code>, for a field tagged
+      <code>required</code> that had no value, and <code>ErrUnknownField</code>,
+      for a body key nothing binds when <code>DisallowUnknownFields</code> is
+      set. Both deserve a 400.
+    </p>
+
     <h2 id="whose-fault">Whose fault is it</h2>
     <p>
       <code>ErrInvalidTarget</code> is the one case that should not be blamed on
       the client. It means the handler passed something that was never bindable
       — a value instead of a pointer, a nil pointer, a pointer to a map — and no
-      request would have made it work:
+      request would have made it work.
     </p>
-
-    <bd-code data-lang="go"><pre><code>switch {
-case errors.Is(err, binder.ErrInvalidTarget):
-	http.Error(w, "server error", http.StatusInternalServerError)
-case errors.Is(err, binder.ErrBodyTooLarge):
-	http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
-case err != nil:
-	http.Error(w, err.Error(), http.StatusBadRequest)
-}</code></pre></bd-code>
 
     <p>
-      Wrapping that switch in a small helper is usually worth it, so that every
-      handler answers the same way:
+      An application usually writes its error handling once, since the
+      response format, the status codes and the wording are its own choice.
+      Handlers call <code>Bind</code> directly and hand any error to it:
     </p>
 
-    <bd-code data-lang="go"><pre><code>// bind fills dst from r, writing the response itself on failure. It reports
-// whether the handler should continue.
-func bind(w http.ResponseWriter, r *http.Request, dst any) bool {
-	err := binder.Bind(r, dst)
-	switch {
-	case err == nil:
-		return true
-	case errors.Is(err, binder.ErrInvalidTarget):
-		log.Printf("bind: %v", err) // our bug, not theirs
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-	case errors.Is(err, binder.ErrBodyTooLarge):
-		http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
-	default:
-		http.Error(w, err.Error(), http.StatusBadRequest)
-	}
-	return false
-}
-
-func handler(w http.ResponseWriter, r *http.Request) {
+    <bd-code data-lang="go"><pre><code>func createComment(w http.ResponseWriter, r *http.Request) {
 	var req CreateComment
-	if !bind(w, r, &amp;req) {
+	if err := binder.Bind(r, &amp;req); err != nil {
+		writeBindError(w, err)
 		return
 	}
 	// ...
+}
+
+// writeBindError answers a request that failed to bind.
+func writeBindError(w http.ResponseWriter, err error) {
+	var errs binder.BindErrors
+	switch {
+	case errors.As(err, &amp;errs):
+		writeFieldErrors(w, errs, http.StatusBadRequest) // as above
+	case errors.Is(err, binder.ErrBodyTooLarge):
+		http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+	case errors.Is(err, binder.ErrMalformedBody):
+		http.Error(w, "malformed request body", http.StatusBadRequest)
+	case errors.Is(err, binder.ErrInvalidTarget):
+		log.Printf("bind: %v", err) // our bug, not theirs
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	default:
+		// Validate failed, or the body could not be read: see Validation
+		// for recognising your own type.
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
 }</code></pre></bd-code>
+
+    <p>
+      The repository's
+      <a href="https://github.com/uRadical/binder/tree/main/example" rel="noopener">example server</a>
+      shows the whole pattern, with tests for every case.
+    </p>
 
     <h2 id="malformed-bodies">Malformed bodies</h2>
     <p>
@@ -230,25 +270,28 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }</code></pre></bd-code>
 
     <p>
-      A body whose <code>Content-Type</code> is neither JSON nor
-      form-encoded is not parsed at all, so it is never malformed — such a
-      request binds from its path, query, cookie and header values and leaves
-      body fields at their zero values.
+      A body whose <code>Content-Type</code> is none of JSON, form-encoded or
+      multipart is not parsed at all, so it is never malformed — such a request
+      binds from its path, query, cookie and header values and leaves body
+      fields untouched. When a field binds from the body, it is still read,
+      within the size limit.
     </p>
 
     <div class="docs-note docs-warn">
-      Built with Go 1.27, <code>errors.As(err, &amp;*json.SyntaxError{})</code>
-      no longer matches: <code>encoding/json</code> is implemented on json/v2 and
-      returns different error types. Test for <code>ErrMalformedBody</code>
-      instead — it is the reason the sentinel exists.
+      Do not match a JSON parse failure with
+      <code>errors.As(err, new(*json.SyntaxError))</code>: binder parses with
+      <code>encoding/json/jsontext</code>, so a syntax error wraps a
+      <code>*jsontext.SyntacticError</code>, and other failures, such as a body
+      that is an array, wrap plain errors. Test for <code>ErrMalformedBody</code> instead —
+      it is the reason the sentinel exists.
     </div>
 
     <h2 id="never-panics">What binder will not do</h2>
     <ul>
-      <li><strong>It does not panic.</strong> An unusable target or an unsettable field is reported as an error, not a stack trace in your request path.</li>
+      <li><strong>It does not panic.</strong> An unusable target is reported as an error, not a stack trace in your request path, and an unexported field is skipped, as <code>encoding/json</code> skips one.</li>
       <li><strong>It does not swallow.</strong> A body that fails to parse is reported rather than ignored.</li>
       <li><strong>It does not truncate.</strong> An oversized body is rejected whole, so a handler never sees a half-parsed request.</li>
-      <li><strong>It does not consume the body.</strong> The body is restored after reading, so middleware further down the chain can read it too.</li>
+      <li><strong>It does not consume the body.</strong> The body is restored after reading, even when it was too large, so middleware further down the chain can read it too. A target with no body field does not read it at all, unless <code>DisallowUnknownFields</code> is set.</li>
     </ul>
 
     <nav class="docs-pager" aria-label="Pagination">

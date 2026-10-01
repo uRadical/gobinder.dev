@@ -59,7 +59,7 @@
 
 <div class="wrap docs-layout">
   <nav class="docs-nav" aria-label="Documentation">
-      <p class="docs-version">Documents <strong>v1.1.0</strong></p>
+      <p class="docs-version">Documents <strong>v1.2.0</strong></p>
       <p class="docs-nav-title">Getting started</p>
       <ul>
         <li><a href="/docs/">Overview</a></li>
@@ -95,33 +95,116 @@
 
     <h2 id="stable">Stable within a major version</h2>
     <ul>
-      <li>The exported functions <code>Bind</code>, <code>BindWithOptions</code> and <code>BindStruct</code>.</li>
-      <li>The exported types <code>BindOptions</code>, <code>BindError</code> and <code>Validator</code>, and the meaning of their fields.</li>
+      <li>The exported functions <code>Bind</code> and <code>BindWithOptions</code>.</li>
+      <li>The exported types <code>BindOptions</code>, <code>BindError</code>, <code>BindErrors</code> and <code>Validator</code>, and the meaning of their fields.</li>
       <li>The sentinel errors <code>ErrMalformedBody</code>, <code>ErrBodyTooLarge</code>, <code>ErrInvalidTarget</code>, <code>ErrMissingRequired</code> and <code>ErrUnknownField</code>. Match on these with <code>errors.Is</code> rather than on message text.</li>
-      <li>The struct tags <code>path</code>, <code>query</code>, <code>body</code>, <code>json</code>, <code>cookie</code> and <code>header</code>, the order in which they take precedence, and the <code>omitempty</code> and <code>required</code> options.</li>
+      <li>The struct tags <code>path</code>, <code>query</code>, <code>body</code>, <code>json</code>, <code>cookie</code>, <code>header</code> and <code>form</code>, the order in which they take precedence, and the <code>omitempty</code> and <code>required</code> options.</li>
     </ul>
 
     <h2 id="unstable">Not part of the contract</h2>
     <ul>
       <li><strong>The text of error messages.</strong> Only the sentinels and <code>BindError</code>'s fields are stable; parsing a message is not supported.</li>
-      <li><strong>The default value of <code>MaxBodySize</code>.</strong> Set it explicitly if your service depends on a particular limit.</li>
+      <li><strong>The value of <code>DefaultMaxBodySize</code>.</strong> Pass <code>BindOptions.MaxBodySize</code> if your service depends on a particular limit.</li>
       <li><strong>The order in which fields are bound</strong>, and how many allocations binding takes.</li>
     </ul>
 
     <h2 id="go">Go version support</h2>
     <p>
-      binder requires the two most recent major Go releases. It currently
-      requires <strong>Go 1.27</strong>, for the standard library
-      <code>uuid</code> package and native path values. Raising that minimum is
-      a minor version bump, not a major one, in line with the wider Go
-      ecosystem.
+      binder supports the Go releases the Go project supports: the two most
+      recent. It currently requires <strong>Go 1.27</strong>, so until Go 1.28
+      ships, 1.27 is the only supported release. JSON is decoded with
+      <code>encoding/json/jsontext</code>, so the toolchain's jsonv2 experiment
+      must be on, as it is by default; <code>GOEXPERIMENT=nojsonv2</code> will
+      not build binder. Raising that minimum is a minor version bump, not
+      a major one, in line with the wider Go ecosystem.
     </p>
 
     <div class="docs-note docs-warn">
-      Built with Go 1.27, <code>encoding/json</code> is implemented on json/v2
-      and returns different error types, so
-      <code>errors.As(err, &amp;*json.SyntaxError{})</code> no longer matches a
-      malformed body. Test for <code>ErrMalformedBody</code> instead.
+      A malformed JSON body no longer wraps a <code>*json.SyntaxError</code>:
+      binder parses with <code>encoding/json/jsontext</code>, so
+      <code>errors.As(err, new(*json.SyntaxError))</code> does not match. Test for <code>ErrMalformedBody</code> instead.
+    </div>
+
+    <h2 id="upgrading-1-2">Upgrading from 1.1 to 1.2</h2>
+    <p>
+      1.2.0 changes the API and some behaviour in ways that need code changes
+      or a check:
+    </p>
+
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead><tr><th>Change</th><th>What to do</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>Validator</code> takes a context</td>
+          <td>Change <code>Validate() error</code> to <code>Validate(ctx context.Context) error</code>; rules that do not need the context can ignore it. A type still declaring the old method no longer satisfies <code>Validator</code> and is not validated, so check every implementation.</td>
+        </tr>
+        <tr>
+          <td>Field failures are <code>BindErrors</code></td>
+          <td>Every field is attempted and all failures come back as <code>BindErrors</code>, even when there is only one. <code>err.(*binder.BindError)</code> no longer matches; use <code>errors.As</code> to get the list, or a <code>*BindError</code> for the first failure.</td>
+        </tr>
+        <tr>
+          <td>Unknown fields are entries</td>
+          <td>With <code>DisallowUnknownFields</code>, each unknown key is its own <code>BindErrors</code> entry wrapping <code>ErrUnknownField</code>, rather than one error listing them all. <code>errors.Is(err, ErrUnknownField)</code> still works.</td>
+        </tr>
+        <tr>
+          <td>Nested failures are named by path</td>
+          <td>A failure inside a nested struct or slice is its own entry, with <code>Field</code> and <code>Name</code> such as <code>Inner.A</code> and <code>inner.a</code>, or <code>IDs[1]</code> and <code>id[1]</code>.</td>
+        </tr>
+        <tr>
+          <td><code>BindStruct</code> is gone</td>
+          <td>It exposed an internal detail of nested binding through <code>reflect.Value</code>; <code>Bind</code> binds nested structs itself.</td>
+        </tr>
+        <tr>
+          <td>The <code>MaxBodySize</code> variable is gone</td>
+          <td>Pass <code>BindOptions{MaxBodySize: n}</code> to <code>BindWithOptions</code> instead. <code>Bind</code> uses <code>DefaultMaxBodySize</code>, as does a zero <code>MaxBodySize</code>; a negative value still removes the limit.</td>
+        </tr>
+        <tr>
+          <td>No body field, no body read</td>
+          <td>A target with no <code>body</code> or <code>json</code> field leaves the body unread, so an oversized or malformed body no longer fails it. Set <code>DisallowUnknownFields</code> if such an endpoint must reject a JSON or form body that carries members.</td>
+        </tr>
+        <tr>
+          <td>Empty values do not fill a slice</td>
+          <td><code>?tags=</code> used to bind <code>[""]</code> and satisfy <code>required</code>. A query parameter or header whose every value is empty now counts as absent for a slice, as it already did for a single value.</td>
+        </tr>
+        <tr>
+          <td>Trailing JSON is malformed</td>
+          <td>A JSON body followed by anything but whitespace, such as a second object, is <code>ErrMalformedBody</code>; it used to bind from the first value.</td>
+        </tr>
+        <tr>
+          <td><code>json:"-"</code> is not bound</td>
+          <td>It used to bind a body key literally named <code>-</code>. A tag with an empty name now binds under the Go field name rather than the key <code>""</code>.</td>
+        </tr>
+        <tr>
+          <td>Form bodies on every method</td>
+          <td>A form-encoded body now binds on GET and DELETE too, is limited by <code>MaxBodySize</code> rather than also by <code>net/http</code>'s 10 MB form cap, and a malformed URL query no longer fails it.</td>
+        </tr>
+        <tr>
+          <td>JSON arrays and objects are not strings</td>
+          <td>Binding one into a <code>string</code> field is an error; it used to bind Go's formatting, such as <code>[a b]</code>.</td>
+        </tr>
+        <tr>
+          <td><code>omitempty</code> has no effect on pointers</td>
+          <td>A <code>*bool</code> or <code>*int</code> tagged <code>omitempty</code> used to skip a JSON <code>false</code> or <code>0</code>, so a PATCH setting one was lost. The pointer alone now tells "not sent" from zero.</td>
+        </tr>
+        <tr>
+          <td>A <code>time.Duration</code> needs a unit in text</td>
+          <td>Text such as <code>9</code> used to bind as 9 nanoseconds; it is now an error, except <code>0</code>. Send <code>9ns</code>, or a JSON number, which is still nanoseconds.</td>
+        </tr>
+        <tr>
+          <td>Fractions do not truncate</td>
+          <td>A JSON number such as <code>1.9</code> bound into an integer field, or <code>time.Duration</code>, used to truncate to <code>1</code>; it is now an error, as it already was from a query string.</td>
+        </tr>
+        <tr>
+          <td>A failed occurrence stands</td>
+          <td>A JSON member sent twice binds its last occurrence, but an earlier occurrence that failed to convert is reported, as in <code>encoding/json</code>; the body used to be decoded into a map, so only the last occurrence was looked at.</td>
+        </tr>
+        <tr>
+          <td>Nested options apply</td>
+          <td><code>required</code> and <code>omitempty</code> inside a nested struct used to be ignored; they now behave as they do at the top level.</td>
+        </tr>
+      </tbody>
+    </table>
     </div>
 
     <h2 id="upgrading">Upgrading from 1.0 to 1.1</h2>
@@ -142,7 +225,7 @@
       <tbody>
         <tr>
           <td>Request bodies are capped at 10 MB</td>
-          <td>Anything larger is <code>ErrBodyTooLarge</code> instead of being read into memory. The change most likely to be noticed — set <code>binder.MaxBodySize</code> at startup to raise, lower or remove it.</td>
+          <td>Anything larger is <code>ErrBodyTooLarge</code> instead of being read into memory. The change most likely to be noticed. In 1.1 the package-level <code>binder.MaxBodySize</code> raised, lowered or removed it; from 1.2, pass <code>BindOptions.MaxBodySize</code> instead.</td>
         </tr>
         <tr>
           <td>A body that cannot be parsed is an error</td>
